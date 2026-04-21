@@ -135,10 +135,10 @@ export default function Admin() {
 
   return (
     <AdminLayout>
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-6">
+      <div className="container mx-auto px-4 py-8 animate-fade-in">
+        <div className="mb-8 animate-slide-up">
           <h1 className="text-3xl font-bold text-blue-900 mb-2">Admin Control Panel</h1>
-          <p className="text-gray-600">Manage sensors and configure system thresholds</p>
+          <p className="text-gray-600">Manage sensors and configure system thresholds.</p>
         </div>
 
         {/* Sensor Control Section */}
@@ -148,7 +148,7 @@ export default function Admin() {
               <CardTitle className="flex items-center gap-2 text-2xl">
                 <Power className="text-blue-600" size={24} /> Sensor Control
               </CardTitle>
-              <CardDescription>Toggle sensors on/off and monitor their status</CardDescription>
+              <CardDescription>Toggle sensors on/off and monitor their status.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -181,6 +181,7 @@ export default function Admin() {
                               checked={isOnline}
                               onCheckedChange={() => handleSensorToggle(sensor.key)}
                               id={`sensor-${sensor.key}`}
+                              className={isOnline ? 'data-[state=checked]:bg-blue-600' : ''}
                             />
                             <Label htmlFor={`sensor-${sensor.key}`} className="text-xs text-gray-600 cursor-pointer">
                               {isOnline ? 'Turn Off' : 'Turn On'}
@@ -197,8 +198,8 @@ export default function Admin() {
                 <CardContent className="p-4 flex items-start gap-3">
                   <AlertTriangle className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
                   <p className="text-sm text-amber-800">
-                    <strong>Warning:</strong> Disabling sensors will stop data collection and may prevent flood detection. 
-                    Only disable sensors for maintenance or testing purposes.
+                    <strong>Warning:</strong> Disabling sensors will stop data collection and prevent flood detection. 
+                    Disable sensors for maintenance or testing purposes only.
                   </p>
                 </CardContent>
               </Card>
@@ -213,7 +214,7 @@ export default function Admin() {
               <CardTitle className="flex items-center gap-2 text-2xl">
                 <Settings className="text-blue-600" size={24} /> Threshold Configuration
               </CardTitle>
-              <CardDescription>Set custom threshold values for normal, warning, and critical levels</CardDescription>
+              <CardDescription>Set custom threshold values for normal, warning, and critical levels.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {thresholdCategories.map((category) => {

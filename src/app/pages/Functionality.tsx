@@ -6,7 +6,7 @@ export default function Functionality() {
     {
       name: 'ESP32',
       description: 'Powerful microcontroller with Wi-Fi and Bluetooth for data processing and transmission.',
-      specs: 'Dual-core processor with Wi-Fi & Bluetooth',
+      specs: 'Range (Wi-Fi): 50–100 m, Range (Bluetooth): 10 m',
       imagePlaceholder: 'esp32.png',
       details: [
         'Stable 3.3V operation',
@@ -15,36 +15,36 @@ export default function Functionality() {
       ]
     },
     {
-      name: 'Ultrasonic Sensor (HC-SR04)',
-      description: 'Measures water level distance accurately without contact.',
+      name: 'BME680 Sensor',
+      description: 'Environmental sensor for temperature, humidity, and air pressure.',
+      specs: 'Temperature: ±1 °C, Humidity: ±3 %, Pressure: ±1 hPa',
+      imagePlaceholder: 'bme680.png',
+      details: [
+        'Tracks temperature and humidity',
+        'Monitors air pressure',
+        'Customizable Thresholds'
+      ]
+    },
+    {
+      name: 'Ultrasonic Sensor (HC-SR04P)',
+      description: 'Measures water level distance without contact.',
       specs: 'Range: 2-400cm, Accuracy: ±3mm',
       imagePlaceholder: 'ultrasonic.png',
       details: [
         'Measures distance using sound waves',
         'Non-contact water level detection',
-        'Suitable for flood monitoring'
-      ]
-    },
-    {
-      name: 'BME680 Sensor',
-      description: 'Environmental sensor for temperature, humidity, and air pressure.',
-      specs: 'Measures temperature, humidity, and air pressure',
-      imagePlaceholder: 'bme680.png',
-      details: [
-        'Tracks temperature and humidity',
-        'Monitors air pressure',
-        'Compact sensor suitable for field use'
+        'Customizable Thresholds'
       ]
     },
     {
       name: 'Rainfall Sensor',
-      description: 'Detects rainfall intensity for flood prediction.',
-      specs: 'Digital and analog output for rain detection',
+      description: 'Measures rainfall intensity.',
+      specs: 'Range: 0–200 mm/h, Accuracy: ±5 %',
       imagePlaceholder: 'rainfall.png',
       details: [
         'Detects rainfall amount and intensity',
         'Alerts system when rain is detected',
-        'Easy to integrate with microcontrollers'
+        'Customizable Thresholds'
       ]
     }
   ];
@@ -62,12 +62,12 @@ export default function Functionality() {
     },
     {
       name: 'Small Breadboard',
-      desc: 'For prototyping without soldering.',
+      desc: 'Board for building circuits without wiring.',
       imagePlaceholder: 'breadboard.png',
       details: [
-        'Quick circuit testing',
-        'Organize wiring efficiently',
-        'Reusable for multiple experiments'
+        'Clean circuit layout',
+        'Efficient wiring organization',
+        'Supports multiple components'
       ]
     },
     {
@@ -76,8 +76,7 @@ export default function Functionality() {
       imagePlaceholder: 'matrix_display.png',
       details: [
         'Shows sensor values clearly',
-        'Easy to read from a distance',
-        'Compact and easy to mount'
+        'Easy to read from a distance'
       ]
     },
     {
@@ -96,8 +95,7 @@ export default function Functionality() {
       imagePlaceholder: 'usb_cable.png',
       details: [
         'Transfers data for programming',
-        'Supplies power during testing',
-        'High-quality cable recommended'
+        'Supplies power during testing'
       ]
     },
     {
@@ -105,9 +103,7 @@ export default function Functionality() {
       desc: 'Audio alert for warnings and alarms.',
       imagePlaceholder: 'buzzer.png',
       details: [
-        'Sounds alarm for critical events',
-        'Easy to integrate with system',
-        'Operates on standard voltage'
+        'Sounds alarm for critical events'
       ]
     },
     {
@@ -115,7 +111,7 @@ export default function Functionality() {
       desc: 'Portable power supply for field deployment.',
       imagePlaceholder: 'powerbank.png',
       details: [
-        'Provides backup power',
+        'Provides power',
         'Ensures continuous operation',
         'Portable and rechargeable'
       ]
@@ -124,11 +120,11 @@ export default function Functionality() {
 
   return (
     <Layout>
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-blue-600 to-cyan-500 text-white py-20">
-        <div className="max-w-4xl mx-auto text-center px-4">
+      {/* Hero Section */}
+      <section className="bg-gradient-to-br from-blue-600 to-cyan-500 text-white text-center py-24 animate-fade-in">
+        <div className="container mx-auto px-4 animate-slide-up">
           <h1 className="text-5xl font-bold mb-4">System Functionality</h1>
-          <p className="text-xl text-blue-100">
+          <p className="text-xl text-blue-100 mb-4">
             Smart components working together for accurate and reliable flood detection.
           </p>
         </div>
@@ -185,7 +181,7 @@ export default function Functionality() {
       </section>
 
       {/* Supporting Components */}
-      <section className="bg-blue-50 py-20 px-4">
+      <section className="bg-gradient-to-br from-blue-50 to-cyan-50 py-20 px-4">
         <div className="max-w-6xl mx-auto">
 
           <div className="text-center mb-14">
@@ -195,26 +191,36 @@ export default function Functionality() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 justify-items-center">
             {supportingComponents.map((c, index) => (
-              <Card key={index} className="rounded-2xl shadow-sm hover:shadow-lg transition">
-                <CardHeader className="text-center">
-                  <div className="w-full aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-xs text-gray-400 mb-3">
+              <Card key={index} className="w-full max-w-sm rounded-2xl shadow-md hover:shadow-xl transition">
+                <CardContent className="p-6 space-y-4">
+                  
+                  <div className="w-full aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-sm text-gray-400">
                     {c.imagePlaceholder}
                   </div>
-                  <CardTitle className="text-lg text-blue-900">{c.name}</CardTitle>
-                  <p className="text-sm text-gray-600">{c.desc}</p>
-                </CardHeader>
-
-                <div className="bg-gray-100 p-3">
-                  <CardContent>
-                    <ul className="text-sm text-gray-700 space-y-1">
+                  
+                  <div>
+                    <h3 className="text-xl font-semibold text-blue-900">
+                      {c.name}
+                    </h3>
+                    <p className="text-gray-600 text-sm mt-1">
+                      {c.desc}
+                    </p>
+                  </div>
+                  
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-blue-900 mb-2 text-sm">
+                      Key Features
+                    </h4>
+                    <ul className="space-y-1 text-sm text-gray-700">
                       {c.details.map((d, i) => (
                         <li key={i}>• {d}</li>
                       ))}
                     </ul>
-                  </CardContent>
-                </div>
+                  </div>
+                  
+                </CardContent>
               </Card>
             ))}
           </div>

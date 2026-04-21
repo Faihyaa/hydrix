@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import ForgotPassword from './pages/ForgotPassword';
 import Home from './pages/Home';
 import AboutUs from './pages/AboutUs';
 import Functionality from './pages/Functionality';
@@ -25,6 +26,10 @@ export const router = createBrowserRouter([
   {
     path: '/signup',
     element: <Signup />
+  },
+  {
+    path: '/forgot-password',
+    element: <ForgotPassword />
   },
   {
     path: '/',

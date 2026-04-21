@@ -2,6 +2,7 @@ import { Layout } from '../components/Layout';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Link } from 'react-router';
+import { useState, useEffect } from 'react';
 import { 
   Activity, 
   Wifi, 
@@ -11,6 +12,21 @@ import {
 } from 'lucide-react';
 
 export default function About() {
+  const [visibleSteps, setVisibleSteps] = useState<number[]>([]);
+
+  useEffect(() => {
+    // Staggered animation for steps
+    const timeouts: NodeJS.Timeout[] = [];
+    [0, 1, 2, 3, 4].forEach((index) => {
+      const timeout = setTimeout(() => {
+        setVisibleSteps((prev) => [...prev, index]);
+      }, index * 300); // 300ms delay between each
+      timeouts.push(timeout);
+    });
+
+    return () => timeouts.forEach(clearTimeout);
+  }, []);
+
   const flowSteps = [
     {
       icon: Activity,
@@ -52,8 +68,8 @@ export default function About() {
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-blue-600 to-cyan-500 text-white py-16">
-        <div className="container mx-auto px-4">
+      <section className="bg-gradient-to-br from-blue-600 to-cyan-500 text-white py-24 animate-fade-in">
+        <div className="container mx-auto px-4 animate-slide-up">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-6">About FlooDeT</h1>
             <p className="text-xl text-blue-100 leading-relaxed">
@@ -65,7 +81,7 @@ export default function About() {
       </section>
 
       {/* How It Works Preview */}
-      <section className="bg-gradient-to-br from-blue-50 to-cyan-50 py-16">
+      <section className="bg-gradient-to-br from-blue-50 to-cyan-50 py-16 animate-slide-up">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-blue-900 mb-4">How FlooDeT Works</h2>
@@ -80,10 +96,18 @@ export default function About() {
             { icon: Bell, title: 'Decision Making', color: 'from-blue-500 to-blue-600' }
           ].map((step, index) => {
             const Icon = step.icon;
+            const isVisible = visibleSteps.includes(index);
             return (
-              <div key={index} className="text-center">
+              <div 
+                key={index} 
+                className={`text-center transition-all duration-500 ${
+                  isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+                }`}
+              >
           
-                <div className={`w-16 h-16 bg-gradient-to-br ${step.color} rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg`}>
+                <div className={`w-16 h-16 bg-gradient-to-br ${step.color} rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg ${
+                  isVisible ? 'scale-100' : 'scale-0'
+                } transition-transform duration-500`}>
                   <Icon className="text-white" size={28} />
                 </div>
 

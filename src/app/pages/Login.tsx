@@ -7,6 +7,7 @@ import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Droplets, Mail, Lock } from 'lucide-react';
 import { toast } from 'sonner';
+import { AnimatedBackground } from '../components/AnimatedBackground';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -37,9 +38,8 @@ export default function Login() {
   const handleGmailLogin = async () => {
     setLoading(true);
     try {
-      await loginWithGmail();
-      toast.success('Logged in with Gmail!');
-      navigate('/');
+      // Navigate to Gmail sign-in page
+      window.location.href = 'https://accounts.google.com/';
     } catch (error) {
       toast.error('Gmail login failed');
     } finally {
@@ -48,12 +48,13 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex items-center justify-center p-4">
+    <div className="min-h-screen relative flex items-center justify-center p-4">
+      <AnimatedBackground />
       
-      <div className="w-full max-w-5xl grid md:grid-cols-2 gap-8 items-center">
+      <div className="w-full max-w-5xl grid md:grid-cols-2 gap-8 items-center relative z-10 animate-fade-in">
         
         {/* LEFT SIDE */}
-        <div className="text-center md:text-left space-y-3">
+        <div className="text-center md:text-left space-y-3 animate-slide-in-left">
           <div className="flex items-center justify-center md:justify-start gap-2 mb-4">
             <div className="bg-gradient-to-br from-blue-500 to-cyan-400 p-3 rounded-xl">
               <Droplets className="text-white" size={32} />
@@ -70,7 +71,7 @@ export default function Login() {
         </div>
 
         {/* RIGHT SIDE */}
-        <Card className="border-blue-100 shadow-lg w-[380px] mx-auto">
+        <Card className="border-blue-100 shadow-lg w-[380px] mx-auto animate-slide-in-right">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center">Login</CardTitle>
             <CardDescription className="text-center">
@@ -98,7 +99,12 @@ export default function Login() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <Link to="/forgot-password" className="text-xs text-blue-600 hover:text-blue-700">
+                    Forgot Password?
+                  </Link>
+                </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <Input

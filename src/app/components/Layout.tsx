@@ -1,14 +1,17 @@
 import { Link, useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './ui/button';
-import { Droplets, LogOut, User, Bell, BellOff } from 'lucide-react';
+import { Droplets, LogOut, User, Bell, BellOff, Menu, X } from 'lucide-react';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
+import { AnimatedBackground } from './AnimatedBackground';
+import { useState } from 'react';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout, updateNotificationPreference } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -18,10 +21,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50">
+    <div className="min-h-screen relative">
+      <AnimatedBackground />
+      
       {/* Header */}
-      <header className="bg-white border-b border-blue-100 sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-4">
+      <header className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-7xl bg-white/70 backdrop-blur-xl border border-blue-200/50 z-50 shadow-lg rounded-2xl transition-all duration-300 hover:shadow-xl">
+        <div className="px-6 py-3">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <div className="bg-gradient-to-br from-blue-500 to-cyan-400 p-2 rounded-lg">
@@ -90,85 +95,164 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
             {user && (
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    {user.notifications ? (
-                      <Bell className="text-blue-600" size={16} />
-                    ) : (
-                      <BellOff className="text-gray-400" size={16} />
-                    )}
-                    <Switch
-                      checked={user.notifications}
-                      onCheckedChange={updateNotificationPreference}
-                      id="notifications"
-                    />
-                    <Label htmlFor="notifications" className="text-xs text-gray-600 cursor-pointer">
-                      Alerts
-                    </Label>
-                  </div>
+                <div className="hidden md:flex items-center gap-2">
+                  {user.notifications ? (
+                    <Bell className="text-blue-600" size={16} />
+                  ) : (
+                    <BellOff className="text-gray-400" size={16} />
+                  )}
+                  <Switch
+                    checked={user.notifications}
+                    onCheckedChange={updateNotificationPreference}
+                    id="notifications"
+                    className={user.notifications ? 'data-[state=checked]:bg-blue-600' : ''}
+                  />
+                  <Label htmlFor="notifications" className="text-xs text-gray-600 cursor-pointer">
+                    Alerts
+                  </Label>
                 </div>
-                <div className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg border border-blue-100">
+                
+                <div className="hidden md:block h-6 w-px bg-blue-200"></div>
+                
+                <div className="hidden md:flex items-center gap-2 text-sm text-gray-700">
                   <User className="text-blue-600" size={18} />
                   <div>
-                    <p className="text-sm font-semibold text-gray-800">{user.name}</p>
+                    <p className="font-semibold">{user.name}</p>
                     <p className="text-xs text-gray-500">{user.role}</p>
                   </div>
                 </div>
+                
+                <div className="hidden md:block h-6 w-px bg-blue-200"></div>
+                
                 <Button
                   onClick={handleLogout}
                   variant="ghost"
                   size="sm"
-                  className="text-gray-600 hover:text-red-600 hover:bg-red-50"
+                  className="hidden md:flex items-center gap-2 text-gray-600 hover:text-red-600 hover:bg-red-50"
                 >
                   <LogOut size={18} />
+                  <span>Logout</span>
+                </Button>
+
+                {/* Mobile Menu Toggle */}
+                <Button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  variant="ghost"
+                  size="sm"
+                  className="md:hidden text-blue-600"
+                >
+                  {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                 </Button>
               </div>
             )}
           </div>
+
+          {/* Mobile Menu */}
+          {user && mobileMenuOpen && (
+            <div className="md:hidden mt-4 pt-4 border-t border-blue-200 space-y-3 animate-slide-down">
+              <Link
+                to="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`block text-sm py-2 px-3 rounded-lg transition-colors ${
+                  isActive('/') ? 'text-blue-600 font-semibold bg-blue-50' : 'text-gray-600 hover:bg-blue-50'
+                }`}
+              >
+                Home
+              </Link>
+              <Link
+                to="/about"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`block text-sm py-2 px-3 rounded-lg transition-colors ${
+                  isActive('/about') ? 'text-blue-600 font-semibold bg-blue-50' : 'text-gray-600 hover:bg-blue-50'
+                }`}
+              >
+                About Us
+              </Link>
+              <Link
+                to="/functionality"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`block text-sm py-2 px-3 rounded-lg transition-colors ${
+                  isActive('/functionality') ? 'text-blue-600 font-semibold bg-blue-50' : 'text-gray-600 hover:bg-blue-50'
+                }`}
+              >
+                Functionality
+              </Link>
+              <Link
+                to="/dashboard"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`block text-sm py-2 px-3 rounded-lg transition-colors ${
+                  isActive('/dashboard') ? 'text-blue-600 font-semibold bg-blue-50' : 'text-gray-600 hover:bg-blue-50'
+                }`}
+              >
+                IoT Dashboard
+              </Link>
+              <Link
+                to="/contact"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`block text-sm py-2 px-3 rounded-lg transition-colors ${
+                  isActive('/contact') ? 'text-blue-600 font-semibold bg-blue-50' : 'text-gray-600 hover:bg-blue-50'
+                }`}
+              >
+                Contact
+              </Link>
+              {user.role === 'admin' && (
+                <Link
+                  to="/admin"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`block text-sm py-2 px-3 rounded-lg transition-colors ${
+                    isActive('/admin') ? 'text-blue-600 font-semibold bg-blue-50' : 'text-gray-600 hover:bg-blue-50'
+                  }`}
+                >
+                  Admin Panel
+                </Link>
+              )}
+
+              <div className="flex items-center gap-2 py-2 px-3">
+                {user.notifications ? (
+                  <Bell className="text-blue-600" size={16} />
+                ) : (
+                  <BellOff className="text-gray-400" size={16} />
+                )}
+                <Switch
+                  checked={user.notifications}
+                  onCheckedChange={updateNotificationPreference}
+                  id="notifications-mobile"
+                  className={user.notifications ? 'data-[state=checked]:bg-blue-600' : ''}
+                />
+                <Label htmlFor="notifications-mobile" className="text-xs text-gray-600 cursor-pointer">
+                  Alerts
+                </Label>
+              </div>
+
+              <div className="flex items-center gap-2 py-2 px-3 text-sm text-gray-700 bg-blue-50 rounded-lg">
+                <User className="text-blue-600" size={18} />
+                <div>
+                  <p className="font-semibold">{user.name}</p>
+                  <p className="text-xs text-gray-500">{user.role}</p>
+                </div>
+              </div>
+
+              <Button
+                onClick={handleLogout}
+                variant="ghost"
+                size="sm"
+                className="w-full flex items-center justify-center gap-2 text-red-600 hover:bg-red-50"
+              >
+                <LogOut size={18} />
+                <span>Logout</span>
+              </Button>
+            </div>
+          )}
         </div>
       </header>
 
       {/* Main Content */}
-      <main>{children}</main>
+      <main className="pt-24">{children}</main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-blue-100 mt-16">
-        <div className="container mx-auto px-4 py-8">
-          <div className="grid md:grid-cols-3 gap-8">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="bg-gradient-to-br from-blue-500 to-cyan-400 p-2 rounded-lg">
-                  <Droplets className="text-white" size={20} />
-                </div>
-                <span className="font-bold text-lg text-blue-900">FlooDeT</span>
-              </div>
-              <p className="text-sm text-gray-600">
-                Advanced flood detection system with real-time monitoring and alerts.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-800 mb-3">Quick Links</h3>
-              <div className="flex flex-col gap-2">
-                <Link to="/" className="text-sm text-gray-600 hover:text-blue-600 transition-colors">
-                  Home
-                </Link>
-                <Link to="/about" className="text-sm text-gray-600 hover:text-blue-600 transition-colors">
-                  About Us
-                </Link>
-                <Link to="/contact" className="text-sm text-gray-600 hover:text-blue-600 transition-colors">
-                  Contact
-                </Link>
-              </div>
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-800 mb-3">Contact</h3>
-              <p className="text-sm text-gray-600">Email: info@floodet.com</p>
-              <p className="text-sm text-gray-600">Support: support@floodet.com</p>
-            </div>
-          </div>
-          <div className="mt-8 pt-6 border-t border-blue-100 text-center text-sm text-gray-500">
-            © 2026 FlooDeT. All rights reserved.
-          </div>
+      <footer className="bg-white/70 backdrop-blur-md border-t border-blue-100 mt-16">
+        <div className="container mx-auto px-4 py-6 text-center text-sm text-gray-500">
+          © 2026 FlooDeT. All rights reserved.
         </div>
       </footer>
     </div>

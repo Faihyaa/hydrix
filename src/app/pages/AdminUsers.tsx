@@ -254,10 +254,10 @@ export default function AdminUsers() {
 
   return (
     <AdminLayout>
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-6">
+      <div className="container mx-auto px-4 py-8 animate-fade-in">
+        <div className="mb-8 animate-slide-up">
           <h1 className="text-3xl font-bold text-blue-900 mb-2">User Management</h1>
-          <p className="text-gray-600">Manage users and administrators</p>
+          <p className="text-gray-600">Manage users and administrators.</p>
         </div>
 
         {/* Stats Cards */}
@@ -428,7 +428,7 @@ export default function AdminUsers() {
                   <Users className="text-blue-600" size={24} />
                   Users List
                 </CardTitle>
-                <CardDescription>All registered regular users</CardDescription>
+                <CardDescription>All registered users</CardDescription>
               </CardHeader>
               <CardContent>
                 {regularUsers.length === 0 ? (

@@ -5,8 +5,8 @@ import { ExternalLink, BarChart3, Activity } from 'lucide-react';
 export default function Dashboard() {
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-4xl mx-auto">
+      <div className="container mx-auto px-4 py-8 animate-fade-in">
+        <div className="mb-8 animate-slide-up">
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-blue-900 mb-4">IoT Dashboard</h1>

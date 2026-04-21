@@ -2,6 +2,7 @@ import { Layout } from '../components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Link } from 'react-router';
+import { useState, useEffect } from 'react';
 import { 
   Wifi, 
   Activity, 
@@ -13,44 +14,77 @@ import {
 } from 'lucide-react';
 
 export default function Home() {
+  const [count, setCount] = useState(0);
+  const [hourCount, setHourCount] = useState(0);
+  const [instantOpacity, setInstantOpacity] = useState(0);
+
+  useEffect(() => {
+    // 100% counter
+    const interval = setInterval(() => {
+      setCount((prev) => {
+        if (prev < 100) return prev + 1;
+        return prev;
+      });
+    }, 15);
+
+    // 24/7 counter
+    const hourInterval = setInterval(() => {
+      setHourCount((prev) => {
+        if (prev < 24) return prev + 1;
+        return prev;
+      });
+    }, 30);
+
+    // Instant fade-in animation
+    const instantTimeout = setTimeout(() => {
+      setInstantOpacity(1);
+    }, 500);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(hourInterval);
+      clearTimeout(instantTimeout);
+    };
+  }, []);
+
   const features = [
     {
       icon: Wifi,
       title: 'IoT Integration',
-      description: 'Seamless connection with ESP32 and multiple sensors for comprehensive data collection'
+      description: 'Seamless connection with ESP32 and multiple sensors for comprehensive data collection.'
     },
     {
       icon: Activity,
       title: 'Real-Time Data Monitoring',
-      description: 'Continuous monitoring of water levels, temperature, humidity, and rainfall intensity'
+      description: 'Continuous monitoring of water levels, temperature, humidity, air pressure, and rainfall intensity.'
     },
     {
       icon: Bell,
       title: 'Real-Time Alert Notifications',
-      description: 'Instant email alerts when critical thresholds are reached to enable quick response'
+      description: 'Instant email alerts when critical thresholds are reached to enable quick response.'
     },
     {
       icon: BarChart3,
       title: 'Data Analysis',
-      description: 'Advanced analytics to identify patterns and predict potential flood risks'
+      description: 'Advanced analytics to identify patterns and predict potential flood risks.'
     },
     {
       icon: Smartphone,
       title: 'User-Friendly Interface',
-      description: 'Clean and intuitive dashboard design for easy monitoring and management'
+      description: 'Clean and intuitive dashboard design for easy monitoring and management.'
     },
     {
       icon: Shield,
       title: 'Accessible Across Multiple Devices',
-      description: 'Access your flood monitoring system from any device, anywhere, anytime'
+      description: 'Access flood monitoring system from any device, anytime, anywhere!'
     }
   ];
 
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="text-center max-w-4xl mx-auto">
+      <section className="container mx-auto px-4 py-16 animate-fade-in max-w-7xl">
+        <div className="text-center max-w-4xl mx-auto animate-slide-up">
           <h1 className="text-5xl md:text-6xl font-bold text-blue-900 mb-6 leading-tight">
             Protect Your Community with{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500">
@@ -77,19 +111,19 @@ export default function Home() {
       </section>
 
       {/* Stats Section */}
-      <section className="bg-gradient-to-r from-blue-600 to-cyan-500 py-12">
-        <div className="container mx-auto px-3">
+      <section className="bg-gradient-to-r from-blue-600 to-cyan-500 py-12 animate-slide-up">
+        <div className="container mx-auto px-3 max-w-7xl">
           <div className="grid grid-cols-3 gap-4 md:gap-8 text-white text-center">
             <div>
-              <div className="text-4xl font-bold mb-2">24/7</div>
+              <div className="text-4xl font-bold mb-2">{hourCount}/7</div>
               <div className="text-blue-100">Real-Time Monitoring</div>
             </div>
             <div>
-              <div className="text-4xl font-bold mb-2">Instant</div>
+              <div className="text-4xl font-bold mb-2 transition-opacity duration-1000" style={{ opacity: instantOpacity }}>Instant</div>
               <div className="text-blue-100">Alert Notifications</div>
             </div>
             <div>
-              <div className="text-4xl font-bold mb-2">100%</div>
+              <div className="text-4xl font-bold mb-2">{count}%</div>
               <div className="text-blue-100">Cloud Connected</div>
             </div>
           </div>
@@ -97,7 +131,7 @@ export default function Home() {
       </section>
 
       {/* Key Features */}
-      <section className="container mx-auto px-4 py-16">
+      <section className="container mx-auto px-4 py-16 max-w-7xl">
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold text-blue-900 mb-4">Key Features</h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -134,16 +168,16 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="container mx-auto px-4 py-16">
+      <section className="container mx-auto px-4 py-16 max-w-7xl">
         <Card className="bg-gradient-to-r from-blue-600 to-cyan-500 border-none text-white">
-          <CardContent className="p-12 text-center">
+          <CardContent className="p-12 text-center flex flex-col items-center justify-center">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Ready to Start Monitoring?
             </h2>
             <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-              Access your IoT dashboard and start tracking environmental conditions in real-time!
+              Access our IoT dashboard and start tracking environmental conditions in real-time!
             </p>
-            <Link to="/dashboard">
+            <Link to="/dashboard" className="mb-8">
               <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 text-lg px-8">
                 Access Dashboard
               </Button>
