@@ -8,7 +8,7 @@ import {
   signInWithPopup
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../../lib/firebase';
+import { auth, db } from '../lib/firebase';
 
 interface User {
   id: string;
@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Check if user already exists in Firestore
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-      if (!userDoc.exists()) {
+      if (!userDoc.existMs()) {
         const newUser: User = {
           id: firebaseUser.uid,
           email: firebaseUser.email!,
