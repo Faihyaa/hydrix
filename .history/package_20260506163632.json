@@ -78,12 +78,12 @@
     "react-dom": "18.3.1",
     "@emotion/react": "11.14.0"
   },
- "peerDependenciesMeta": {
+  "peerDependenciesMeta": {
     "react": {
       "optional": true
     },
     "react-dom": {
       "optional": true
     }
-  },
+  }
 }
