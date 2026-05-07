@@ -2,31 +2,43 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   
   const TB_URL = "http://70.153.136.4:8080";
-  const TB_TOKEN = "kxKsQ1pTh9xzjc9Buyrb";
+  const TB_USER = "tenant@thingsboard.org"; // tukar kalau berbeza
+  const TB_PASS = "tenant";                  // tukar kalau berbeza
 
   try {
-    const results = {};
+    // Step 1: Login untuk dapat JWT token
+    const loginRes = await fetch(`${TB_URL}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: TB_USER, password: TB_PASS })
+    });
+    const loginData = await loginRes.json();
+    const token = loginData.token;
 
-    // Test endpoint 1 — attributes
-    try {
-      const r1 = await fetch(`${TB_URL}/api/v1/${TB_TOKEN}/attributes`);
-      results.attributes = await r1.json();
-    } catch (e) { results.attributes = e.message; }
+    if (!token) {
+      return res.status(401).json({ success: false, error: "Login failed", loginData });
+    }
 
-    // Test endpoint 2 — telemetry
-    try {
-      const r2 = await fetch(`${TB_URL}/api/v1/${TB_TOKEN}/telemetry`);
-      results.telemetry = await r2.json();
-    } catch (e) { results.telemetry = e.message; }
+    // Step 2: Ambil senarai devices
+    const devicesRes = await fetch(`${TB_URL}/api/tenant/devices?pageSize=10&page=0`, {
+      headers: { "X-Authorization": `Bearer ${token}` }
+    });
+    const devicesData = await devicesRes.json();
+    const deviceId = devicesData.data?.[0]?.id?.id;
 
-    // Test endpoint 3 — attributes dengan keys
-    try {
-      const keys = "distance,temperature,humidity,pressure,rainPercent,rainStatus,level";
-      const r3 = await fetch(`${TB_URL}/api/v1/${TB_TOKEN}/attributes?clientKeys=${keys}&sharedKeys=${keys}`);
-      results.attributesWithKeys = await r3.json();
-    } catch (e) { results.attributesWithKeys = e.message; }
+    if (!deviceId) {
+      return res.status(404).json({ success: false, error: "No device found", devicesData });
+    }
 
-    res.status(200).json({ success: true, results });
+    // Step 3: Ambil telemetry terkini
+    const keys = "distance,temperature,humidity,pressure,rainPercent,rainStatus,level";
+    const telRes = await fetch(
+      `${TB_URL}/api/plugins/telemetry/DEVICE/${deviceId}/values/timeseries?keys=${keys}`,
+      { headers: { "X-Authorization": `Bearer ${token}` } }
+    );
+    const telData = await telRes.json();
+
+    res.status(200).json({ success: true, data: telData });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
