@@ -28,7 +28,7 @@ interface AlertItem {
 }
  
 // CONFIG — tukar ke URL Render.com anda lepas deploy
-const SERVER_URL = "http://localhost:3000";
+const SERVER_URL = "https://floodetwebsite.vercel.app/";
  
 // HOOK
 function useSensorData() {
