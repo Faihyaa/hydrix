@@ -5,23 +5,28 @@ export default async function handler(req, res) {
   const TB_TOKEN = "kxKsQ1pTh9xzjc9Buyrb";
 
   try {
-    // Cuba guna telemetry endpoint
-    const keys = "distance,temperature,humidity,pressure,rainPercent,rainStatus,level";
-    const url = `${TB_URL}/api/v1/${TB_TOKEN}/telemetry?keys=${keys}`;
-    const response = await fetch(url);
-    const text = await response.text();
-    
-    // Log untuk debug
-    console.log("ThingsBoard response:", text);
-    
-    let data;
+    const results = {};
+
+    // Test endpoint 1 — attributes
     try {
-      data = JSON.parse(text);
-    } catch {
-      data = text;
-    }
-    
-    res.status(200).json({ success: true, data, raw: text });
+      const r1 = await fetch(`${TB_URL}/api/v1/${TB_TOKEN}/attributes`);
+      results.attributes = await r1.json();
+    } catch (e) { results.attributes = e.message; }
+
+    // Test endpoint 2 — telemetry
+    try {
+      const r2 = await fetch(`${TB_URL}/api/v1/${TB_TOKEN}/telemetry`);
+      results.telemetry = await r2.json();
+    } catch (e) { results.telemetry = e.message; }
+
+    // Test endpoint 3 — attributes dengan keys
+    try {
+      const keys = "distance,temperature,humidity,pressure,rainPercent,rainStatus,level";
+      const r3 = await fetch(`${TB_URL}/api/v1/${TB_TOKEN}/attributes?clientKeys=${keys}&sharedKeys=${keys}`);
+      results.attributesWithKeys = await r3.json();
+    } catch (e) { results.attributesWithKeys = e.message; }
+
+    res.status(200).json({ success: true, results });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
