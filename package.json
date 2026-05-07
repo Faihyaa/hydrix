@@ -1,5 +1,5 @@
 {
-  "name": "@figma/my-make-file",
+"name": "@figma/my-make-file",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -75,3 +75,5 @@
     "vite": "^6.4.2"
   }
 }
+
+
