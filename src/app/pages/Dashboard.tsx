@@ -71,24 +71,23 @@ export default function Dashboard() {
   }, []);
 
   // ==== REALTIME CHART DATA ====
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const humidity = parseFloat(getValue("humidity")) || null;
-      const temperature = parseFloat(getValue("temperature")) || null;
-      const rainPct = parseFloat(getValue("rainPercent")) || null;
-      const dist = parseFloat(getValue("distance")) || null;
-      const time = new Date().toLocaleTimeString("en-MY", {
-        hour: "2-digit", minute: "2-digit", second: "2-digit"
-      });
+useEffect(() => {
+  const humidity = parseFloat(getValue("humidity")) || null;
+  const temperature = parseFloat(getValue("temperature")) || null;
+  const rainPct = parseFloat(getValue("rainPercent")) || null;
+  const dist = parseFloat(getValue("distance")) || null;
 
-      const newPoint: ChartPoint = { time, humidity, temperature, rainPercent: rainPct, distance: dist };
-      const updated = [...chartRef.current, newPoint].slice(-20);
-      chartRef.current = updated;
-      setChartData([...updated]);
-    }, 5000);
+  if (humidity || temperature || rainPct || dist) {
+    const time = new Date().toLocaleTimeString("en-MY", {
+      hour: "2-digit", minute: "2-digit", second: "2-digit"
+    });
 
-    return () => clearInterval(interval);
-  }, [getValue]);
+    const newPoint: ChartPoint = { time, humidity, temperature, rainPercent: rainPct, distance: dist };
+    const updated = [...chartRef.current, newPoint].slice(-20);
+    chartRef.current = updated;
+    setChartData([...updated]);
+  }
+}, [getValue]);  // trigger bila getValue berubah iaitu bila Firebase update
 
   // ==== FETCH HISTORY FROM REALTIME DATABASE ====
   useEffect(() => {
