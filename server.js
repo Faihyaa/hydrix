@@ -11,8 +11,9 @@ const serviceAccount = require("./serviceAccountKey.json");
 // ==== FIREBASE INIT ====
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://floodet2-default-rtdb.asia-southeast1.firebasedatabase.app",
 });
-const db = admin.firestore();
+const db = admin.database();
 
 const app = express();
 app.use(cors());
@@ -23,7 +24,7 @@ const TB_URL = "http://70.153.136.4:8080";
 const TB_TOKEN = "kxKsQ1pTh9xzjc9Buyrb";
 const TB_EMAIL = process.env.TB_EMAIL;
 const TB_PASSWORD = process.env.TB_PASSWORD;
-const TB_DEVICE_ID = "3eca7a10-a665-11f0-9920-eb99db60a0b5";
+const TB_DEVICE_ID = "f72beee0-d9cd-11f0-8463-1fcaa679e0db"; 
 
 const GMAIL_USER = process.env.GMAIL_USER;
 const GMAIL_APP_PASS = process.env.GMAIL_APP_PASS;
@@ -120,13 +121,21 @@ async function sendAlertEmail(alertData) {
 // ==== SAVE TO FIREBASE ====
 async function saveToFirebase(sensorData) {
   try {
-    await db.collection("sensorHistory").add({
+    // Save latest sensor data
+    await db.ref("sensorData/latest").set({
       ...sensorData,
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      timestamp: Date.now(),
     });
-    console.log("✅ Data saved to Firebase!");
+
+    // Save history with unique key
+    await db.ref("sensorHistory").push({
+      ...sensorData,
+      timestamp: Date.now(),
+    });
+
+    console.log("✅ Data saved to Realtime Database!");
   } catch (err) {
-    console.error("❌ Firebase save failed:", err.message);
+    console.error("❌ Realtime Database save failed:", err.message);
   }
 }
 
@@ -142,9 +151,9 @@ async function fetchFromThingsBoard() {
 
   const keys = "distance,temperature,humidity,pressure,rainPercent,rainStatus,level";
   const telemetryRes = await fetch(
-    `${TB_URL}/api/plugins/telemetry/DEVICE/${TB_DEVICE_ID}/values/timeseries?keys=${keys}`,
-    { headers: { "X-Authorization": `Bearer ${jwtToken}` } }
-  );
+  `${TB_URL}/api/plugins/telemetry/DEVICE/${TB_DEVICE_ID}/values/timeseries?keys=${keys}&useStrictDataTypes=false&limit=1`,
+  { headers: { "X-Authorization": `Bearer ${jwtToken}` } }
+);
   return await telemetryRes.json();
 }
 
@@ -220,7 +229,7 @@ app.get("/api/history", async (req, res) => {
   }
 });
 
-// ==== AUTO FETCH & SAVE every 30 seconds ====
+// ==== AUTO FETCH & SAVE every 5 seconds ====
 async function checkAndSave() {
   try {
     const data = await fetchFromThingsBoard();
@@ -247,7 +256,7 @@ async function checkAndSave() {
   }
 }
 
-setInterval(checkAndSave, 30000);
+setInterval(checkAndSave, 5000);
 
 // ==== START SERVER ====
 const PORT = process.env.PORT || 3000;

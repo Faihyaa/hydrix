@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSensorData } from "../utils/useSensorsData";
-import { db } from "../../lib/firebase";
-import { collection, query, orderBy, limit, onSnapshot, where, Timestamp } from "firebase/firestore";
+import { database } from "../../lib/firebase";
+import { ref, onValue, query, orderByChild, limitToLast } from "firebase/database";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import {
@@ -33,6 +33,7 @@ export default function Dashboard() {
   const { getValue } = useSensorData();
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<HistoryRecord[]>([]);
+  const [allHistory, setAllHistory] = useState<HistoryRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -89,62 +90,75 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [getValue]);
 
-  // ==== FETCH HISTORY ====
+  // ==== FETCH HISTORY FROM REALTIME DATABASE ====
   useEffect(() => {
     if (!showHistory) return;
     setHistoryLoading(true);
 
-    let q;
+    const historyRef = query(
+      ref(database, "sensorHistory"),
+      orderByChild("timestamp"),
+      limitToLast(200)
+    );
 
-    if (timeFilter) {
-      const hours = parseInt(timeFilter);
-      const from = Timestamp.fromDate(new Date(Date.now() - hours * 60 * 60 * 1000));
-      q = query(
-        collection(db, "sensorHistory"),
-        where("timestamp", ">=", from),
-        orderBy("timestamp", "desc"),
-        limit(200)
-      );
-    } else if (startDate && endDate) {
-      const start = Timestamp.fromDate(new Date(startDate));
-      const end = Timestamp.fromDate(new Date(endDate + "T23:59:59"));
-      q = query(
-        collection(db, "sensorHistory"),
-        where("timestamp", ">=", start),
-        where("timestamp", "<=", end),
-        orderBy("timestamp", "desc"),
-        limit(200)
-      );
-    } else if (startDate && !endDate) {
-      const start = Timestamp.fromDate(new Date(startDate + "T00:00:00"));
-      const end = Timestamp.fromDate(new Date(startDate + "T23:59:59"));
-      q = query(
-        collection(db, "sensorHistory"),
-        where("timestamp", ">=", start),
-        where("timestamp", "<=", end),
-        orderBy("timestamp", "desc"),
-        limit(200)
-      );
-    } else {
-      q = query(
-        collection(db, "sensorHistory"),
-        orderBy("timestamp", "desc"),
-        limit(100)
-      );
-    }
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const records = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate().toISOString() || null,
-      })) as HistoryRecord[];
-      setHistory(records);
+    const unsubscribe = onValue(historyRef, (snapshot) => {
+      const records: HistoryRecord[] = [];
+      snapshot.forEach((child) => {
+        const data = child.val();
+        records.push({
+          id: child.key || "",
+          distance: data.distance ?? null,
+          temperature: data.temperature ?? null,
+          humidity: data.humidity ?? null,
+          pressure: data.pressure ?? null,
+          rainPercent: data.rainPercent ?? null,
+          rainStatus: data.rainStatus ?? null,
+          level: data.level ?? null,
+          timestamp: data.timestamp
+            ? new Date(data.timestamp).toISOString()
+            : null,
+        });
+      });
+      const sorted = records.reverse(); // latest first
+      setAllHistory(sorted);
       setHistoryLoading(false);
     });
 
     return () => unsubscribe();
-  }, [showHistory, startDate, endDate, timeFilter]);
+  }, [showHistory]);
+
+  // ==== FILTER HISTORY CLIENT-SIDE ====
+  useEffect(() => {
+    if (!allHistory.length) return;
+
+    let filtered = [...allHistory];
+
+    if (timeFilter) {
+      const hours = parseInt(timeFilter);
+      const from = Date.now() - hours * 60 * 60 * 1000;
+      filtered = filtered.filter((r) =>
+        r.timestamp ? new Date(r.timestamp).getTime() >= from : false
+      );
+    } else if (startDate && endDate) {
+      const start = new Date(startDate + "T00:00:00").getTime();
+      const end = new Date(endDate + "T23:59:59").getTime();
+      filtered = filtered.filter((r) => {
+        if (!r.timestamp) return false;
+        const t = new Date(r.timestamp).getTime();
+        return t >= start && t <= end;
+      });
+    } else if (startDate && !endDate) {
+      const start = new Date(startDate + "T00:00:00").getTime();
+      const end = new Date(startDate + "T23:59:59").getTime();
+      filtered = filtered.filter((r) => {
+        if (!r.timestamp) return false;
+        const t = new Date(r.timestamp).getTime();
+        return t >= start && t <= end;
+      });
+    }
+
+    setHistory(filtered);
+  }, [allHistory, timeFilter, startDate, endDate]);
 
   // ==== EXPORT EXCEL ====
   const exportToExcel = () => {
@@ -227,7 +241,7 @@ export default function Dashboard() {
             {level === "--" ? "..." : level}
           </div>
           <span style={{ fontSize: "12px", color: "#64748b" }}>
-            Realtime · refreshing in 5s · {currentTime}
+            Realtime · {currentTime}
           </span>
         </div>
       </div>
