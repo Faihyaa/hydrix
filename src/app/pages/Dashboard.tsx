@@ -58,8 +58,16 @@ export default function Dashboard() {
   const maxDistance = 300;
   const progressPercent = isNaN(distanceNum) ? 0 : Math.min((distanceNum / maxDistance) * 100, 100);
 
-  const now = new Date();
-  const timeString = now.toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const [currentTime, setCurrentTime] = useState(
+    new Date().toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+  );
+
+  useEffect(() => {
+    const clock = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+    }, 1000);
+    return () => clearInterval(clock);
+  }, []);
 
   // ==== REALTIME CHART DATA ====
   useEffect(() => {
@@ -171,7 +179,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto", background: "#0f172a", minHeight: "100vh" }}>
+    <div style={{ padding: "24px", background: "#0f172a", minHeight: "100vh" }}>
 
       {/* ===== HEADER ===== */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
@@ -219,7 +227,7 @@ export default function Dashboard() {
             {level === "--" ? "..." : level}
           </div>
           <span style={{ fontSize: "12px", color: "#64748b" }}>
-            Realtime · refreshing in 5s · {timeString}
+            Realtime · refreshing in 5s · {currentTime}
           </span>
         </div>
       </div>
@@ -298,7 +306,7 @@ export default function Dashboard() {
       </div>
 
       {/* ===== ROW 2: Rainfall Intensity Chart + Rain Status + Rainfall Percent ===== */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "16px", marginBottom: "24px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "16px", marginBottom: "16px" }}>
 
         {/* Rainfall Intensity — Line Chart */}
         <div style={card}>
@@ -373,8 +381,8 @@ export default function Dashboard() {
       </div>
 
       {/* ===== FOOTER ===== */}
-      <p style={{ textAlign: "center", fontSize: "12px", color: "#334155" }}>
-        FlooDeT © 2025 · Data updates every 5 seconds · Powered by IoT Sensor → ThingsBoard → Firebase
+      <p style={{ textAlign: "center", fontSize: "10px", color: "#1e293b", marginTop: "8px" }}>
+        FlooDeT © 2025 · Powered by IoT Sensor → ThingsBoard → Firebase
       </p>
 
       {/* ===== HISTORY MODAL ===== */}
