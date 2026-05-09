@@ -1,208 +1,556 @@
+import { useState, useEffect, useRef } from "react";
 import { useSensorData } from "../utils/useSensorsData";
+import { db } from "../../lib/firebase";
+import { collection, query, orderBy, limit, onSnapshot, where, Timestamp } from "firebase/firestore";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer
+} from "recharts";
+
+interface HistoryRecord {
+  id: string;
+  distance: string | null;
+  temperature: string | null;
+  humidity: string | null;
+  pressure: string | null;
+  rainPercent: string | null;
+  rainStatus: string | null;
+  level: string | null;
+  timestamp: string | null;
+}
+
+interface ChartPoint {
+  time: string;
+  humidity: number | null;
+  temperature: number | null;
+  rainPercent: number | null;
+  distance: number | null;
+}
 
 export default function Dashboard() {
-  const { loading, error, getValue, alerts } = useSensorData();
+  const { getValue } = useSensorData();
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<HistoryRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [timeFilter, setTimeFilter] = useState("");
+  const [chartData, setChartData] = useState<ChartPoint[]>([]);
+  const chartRef = useRef<ChartPoint[]>([]);
 
   const level = getValue("level");
   const distance = getValue("distance");
+  const rainPercent = parseFloat(getValue("rainPercent")) || 0;
 
   const levelColor =
-    level === "ALERT" ? "#dc2626" :
-    level === "WARN"  ? "#d97706" :
-                        "#16a34a";
+    level === "ALERT" ? "#ef4444" :
+    level === "WARN"  ? "#f59e0b" :
+                        "#22c55e";
 
   const levelBg =
-    level === "ALERT" ? "#fef2f2" :
-    level === "WARN"  ? "#fffbeb" :
-                        "#f0fdf4";
+    level === "ALERT" ? "rgba(239,68,68,0.15)" :
+    level === "WARN"  ? "rgba(245,158,11,0.15)" :
+                        "rgba(34,197,94,0.15)";
 
   const distanceNum = parseFloat(distance);
   const maxDistance = 300;
   const progressPercent = isNaN(distanceNum) ? 0 : Math.min((distanceNum / maxDistance) * 100, 100);
 
+  const now = new Date();
+  const timeString = now.toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+  // ==== REALTIME CHART DATA ====
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const humidity = parseFloat(getValue("humidity")) || null;
+      const temperature = parseFloat(getValue("temperature")) || null;
+      const rainPct = parseFloat(getValue("rainPercent")) || null;
+      const dist = parseFloat(getValue("distance")) || null;
+      const time = new Date().toLocaleTimeString("en-MY", {
+        hour: "2-digit", minute: "2-digit", second: "2-digit"
+      });
+
+      const newPoint: ChartPoint = { time, humidity, temperature, rainPercent: rainPct, distance: dist };
+      const updated = [...chartRef.current, newPoint].slice(-20);
+      chartRef.current = updated;
+      setChartData([...updated]);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [getValue]);
+
+  // ==== FETCH HISTORY ====
+  useEffect(() => {
+    if (!showHistory) return;
+    setHistoryLoading(true);
+
+    let q;
+
+    if (timeFilter) {
+      const hours = parseInt(timeFilter);
+      const from = Timestamp.fromDate(new Date(Date.now() - hours * 60 * 60 * 1000));
+      q = query(
+        collection(db, "sensorHistory"),
+        where("timestamp", ">=", from),
+        orderBy("timestamp", "desc"),
+        limit(200)
+      );
+    } else if (startDate && endDate) {
+      const start = Timestamp.fromDate(new Date(startDate));
+      const end = Timestamp.fromDate(new Date(endDate + "T23:59:59"));
+      q = query(
+        collection(db, "sensorHistory"),
+        where("timestamp", ">=", start),
+        where("timestamp", "<=", end),
+        orderBy("timestamp", "desc"),
+        limit(200)
+      );
+    } else if (startDate && !endDate) {
+      const start = Timestamp.fromDate(new Date(startDate + "T00:00:00"));
+      const end = Timestamp.fromDate(new Date(startDate + "T23:59:59"));
+      q = query(
+        collection(db, "sensorHistory"),
+        where("timestamp", ">=", start),
+        where("timestamp", "<=", end),
+        orderBy("timestamp", "desc"),
+        limit(200)
+      );
+    } else {
+      q = query(
+        collection(db, "sensorHistory"),
+        orderBy("timestamp", "desc"),
+        limit(100)
+      );
+    }
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const records = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate().toISOString() || null,
+      })) as HistoryRecord[];
+      setHistory(records);
+      setHistoryLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [showHistory, startDate, endDate, timeFilter]);
+
+  // ==== EXPORT EXCEL ====
+  const exportToExcel = () => {
+    const exportData = history.map((record) => ({
+      "Date": record.timestamp ? new Date(record.timestamp).toLocaleDateString("en-MY") : "-",
+      "Time": record.timestamp ? new Date(record.timestamp).toLocaleTimeString("en-MY") : "-",
+      "Water Level (cm)": record.distance ?? "-",
+      "Temperature (°C)": record.temperature ?? "-",
+      "Humidity (%)": record.humidity ?? "-",
+      "Air Pressure (hPa)": record.pressure ?? "-",
+      "Rainfall (%)": record.rainPercent ?? "-",
+      "Rain Status": record.rainStatus ?? "-",
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    worksheet["!cols"] = [
+      { wch: 14 }, { wch: 12 }, { wch: 16 },
+      { wch: 16 }, { wch: 14 }, { wch: 18 },
+      { wch: 14 }, { wch: 14 },
+    ];
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sensor History");
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([excelBuffer], { type: "application/octet-stream" });
+    saveAs(blob, `FlooDeT_History_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const card = {
+    background: "#1e293b",
+    borderRadius: "12px",
+    padding: "20px",
+    border: "1px solid #334155",
+  };
+
   return (
-    <div style={{ padding: "24px", maxWidth: "1200px", margin: "0 auto" }}>
+    <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto", background: "#0f172a", minHeight: "100vh" }}>
 
       {/* ===== HEADER ===== */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-        <div>
-          <h1 style={{ fontSize: "24px", fontWeight: "600", margin: 0 }}>FlooDeT Dashboard</h1>
-          <p style={{ fontSize: "13px", color: "#6b7280", margin: "4px 0 0" }}>
-            Realtime · refreshing every 5s
-          </p>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>
+            🌊
+          </div>
+          <div>
+            <h1 style={{ fontSize: "20px", fontWeight: "700", margin: 0, color: "white" }}>FlooDeT</h1>
+            <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>Smart Flood Detection System</p>
+          </div>
         </div>
-        {!loading && !error && (
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <button
+            onClick={() => setShowHistory(true)}
+            style={{
+              padding: "8px 16px",
+              background: "#1e293b",
+              color: "#94a3b8",
+              border: "1px solid #334155",
+              borderRadius: "8px",
+              fontSize: "13px",
+              fontWeight: "500",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            📊 View History
+          </button>
           <div style={{
             padding: "6px 16px",
             borderRadius: "999px",
             background: levelBg,
             border: `1px solid ${levelColor}`,
             color: levelColor,
-            fontWeight: "600",
-            fontSize: "14px"
+            fontWeight: "700",
+            fontSize: "13px",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
           }}>
-            ● {level === "--" ? "..." : level}
+            <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: levelColor, display: "inline-block" }}/>
+            {level === "--" ? "..." : level}
           </div>
-        )}
+          <span style={{ fontSize: "12px", color: "#64748b" }}>
+            Realtime · refreshing in 5s · {timeString}
+          </span>
+        </div>
       </div>
 
-      {/* ===== ERROR BAR ===== */}
-      {error && (
-        <div style={{
-          background: "#fef2f2",
-          border: "1px solid #fca5a5",
-          color: "#dc2626",
-          padding: "12px 16px",
-          borderRadius: "8px",
-          marginBottom: "20px",
-          fontSize: "14px"
-        }}>
-          ⚠️ {error} — Pastikan server.js running: <code>node server.js</code>
-        </div>
-      )}
+      {/* ===== ROW 1: Water Level + Temp + Humidity + Air Pressure ===== */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: "16px", marginBottom: "16px" }}>
 
-      {/* ===== SENSOR CARDS ===== */}
-      {loading ? (
-        <p style={{ color: "#6b7280" }}>Memuatkan data sensor...</p>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "24px" }}>
-
-          {/* Water Level */}
-          <div style={{ background: "white", borderRadius: "12px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", padding: "20px", gridColumn: "span 2" }}>
-            <p style={{ fontSize: "13px", color: "#6b7280", margin: "0 0 8px" }}>💧 Water Level</p>
-            <p style={{ fontSize: "36px", fontWeight: "700", color: "#2563eb", margin: "0 0 12px" }}>
-              {distance} <span style={{ fontSize: "18px" }}>cm</span>
-            </p>
-            <div style={{ background: "#e5e7eb", borderRadius: "999px", height: "8px" }}>
-              <div style={{
-                background: levelColor,
-                borderRadius: "999px",
-                height: "8px",
-                width: `${progressPercent}%`,
-                transition: "width 0.5s ease"
-              }}/>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#9ca3af", marginTop: "4px" }}>
-              <span>0</span>
-              <span>300 cm</span>
-            </div>
-            <div style={{
-              display: "inline-block",
-              marginTop: "10px",
-              padding: "4px 12px",
-              borderRadius: "999px",
-              background: levelBg,
-              color: levelColor,
-              fontSize: "13px",
-              fontWeight: "600"
-            }}>
-              ● {level}
-            </div>
+        {/* Water Level */}
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+            <span>💧</span>
+            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>Water Level</p>
           </div>
-
-          {/* Temperature */}
-          <div style={{ background: "white", borderRadius: "12px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", padding: "20px" }}>
-            <p style={{ fontSize: "13px", color: "#6b7280", margin: "0 0 8px" }}>🌡️ Temperature</p>
-            <p style={{ fontSize: "32px", fontWeight: "700", color: "#f97316", margin: 0 }}>
-              {getValue("temperature")} <span style={{ fontSize: "16px" }}>°C</span>
-            </p>
-            <p style={{ fontSize: "12px", color: "#9ca3af", margin: "6px 0 0" }}>Last update just now</p>
-          </div>
-
-          {/* Humidity */}
-          <div style={{ background: "white", borderRadius: "12px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", padding: "20px" }}>
-            <p style={{ fontSize: "13px", color: "#6b7280", margin: "0 0 8px" }}>💦 Humidity</p>
-            <p style={{ fontSize: "32px", fontWeight: "700", color: "#06b6d4", margin: 0 }}>
-              {getValue("humidity")} <span style={{ fontSize: "16px" }}>%</span>
-            </p>
-            <p style={{ fontSize: "12px", color: "#9ca3af", margin: "6px 0 0" }}>Last update just now</p>
-          </div>
-
-          {/* Air Pressure */}
-          <div style={{ background: "white", borderRadius: "12px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", padding: "20px" }}>
-            <p style={{ fontSize: "13px", color: "#6b7280", margin: "0 0 8px" }}>🌬️ Air Pressure</p>
-            <p style={{ fontSize: "32px", fontWeight: "700", color: "#8b5cf6", margin: 0 }}>
-              {getValue("pressure")} <span style={{ fontSize: "16px" }}>hPa</span>
-            </p>
-            <p style={{ fontSize: "12px", color: "#9ca3af", margin: "6px 0 0" }}>Last update just now</p>
-          </div>
-
-          {/* Rain Status */}
-          <div style={{ background: "white", borderRadius: "12px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", padding: "20px" }}>
-            <p style={{ fontSize: "13px", color: "#6b7280", margin: "0 0 8px" }}>🌧️ Rain Status</p>
-            <p style={{ fontSize: "24px", fontWeight: "700", color: "#1e40af", margin: 0 }}>
-              {getValue("rainStatus")}
-            </p>
-            <p style={{ fontSize: "12px", color: "#9ca3af", margin: "6px 0 0" }}>Last update just now</p>
-          </div>
-
-          {/* Rainfall Percent */}
-          <div style={{ background: "white", borderRadius: "12px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", padding: "20px" }}>
-            <p style={{ fontSize: "13px", color: "#6b7280", margin: "0 0 8px" }}>🌂 Rainfall Percent</p>
-            <p style={{ fontSize: "32px", fontWeight: "700", color: "#3b82f6", margin: 0 }}>
-              {getValue("rainPercent")} <span style={{ fontSize: "16px" }}>%</span>
-            </p>
-            <div style={{ background: "#e5e7eb", borderRadius: "999px", height: "6px", marginTop: "10px" }}>
-              <div style={{
-                background: "#3b82f6",
-                borderRadius: "999px",
-                height: "6px",
-                width: `${Math.min(parseFloat(getValue("rainPercent")) || 0, 100)}%`,
-                transition: "width 0.5s ease"
-              }}/>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#9ca3af", marginTop: "4px" }}>
-              <span>0% Dry</span>
-              <span>30% Light</span>
-              <span>70%+ Heavy</span>
-            </div>
-          </div>
-
-        </div>
-      )}
-
-      {/* ===== ALERT LOG ===== */}
-      <div style={{ background: "white", borderRadius: "12px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", padding: "20px", marginBottom: "24px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-          <h2 style={{ fontSize: "16px", fontWeight: "600", margin: 0 }}>🔔 Recent Alert Log</h2>
-          <span style={{ fontSize: "12px", color: "#9ca3af" }}>{alerts.length} records</span>
-        </div>
-        {alerts.length === 0 ? (
-          <p style={{ color: "#9ca3af", fontSize: "14px", textAlign: "center", padding: "20px 0" }}>
-            No alerts at this time ✓
+          <p style={{ fontSize: "40px", fontWeight: "700", color: "#3b82f6", margin: "0 0 16px" }}>
+            {distance} <span style={{ fontSize: "20px" }}>cm</span>
           </p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {alerts.slice(0, 10).map((alert, i) => (
-              <div key={i} style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "10px 14px",
-                borderRadius: "8px",
-                background: alert.level === "ALERT" ? "#fef2f2" : alert.level === "WARN" ? "#fffbeb" : "#f0fdf4",
-                border: `1px solid ${alert.level === "ALERT" ? "#fca5a5" : alert.level === "WARN" ? "#fcd34d" : "#86efac"}`
-              }}>
-                <span style={{
-                  fontWeight: "600",
-                  fontSize: "14px",
-                  color: alert.level === "ALERT" ? "#dc2626" : alert.level === "WARN" ? "#d97706" : "#16a34a"
-                }}>
-                  {alert.message}
-                </span>
-                <span style={{ fontSize: "12px", color: "#9ca3af" }}>
-                  {new Date(alert.time).toLocaleTimeString("ms-MY")}
-                </span>
-              </div>
-            ))}
+          <div style={{ background: "#0f172a", borderRadius: "999px", height: "6px", marginBottom: "6px" }}>
+            <div style={{
+              background: levelColor,
+              borderRadius: "999px",
+              height: "6px",
+              width: `${progressPercent}%`,
+              transition: "width 0.5s ease"
+            }}/>
           </div>
-        )}
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#475569", marginBottom: "12px" }}>
+            <span>0</span><span>300 cm</span>
+          </div>
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: "6px",
+            padding: "4px 12px", borderRadius: "999px",
+            background: levelBg, color: levelColor,
+            fontSize: "13px", fontWeight: "700",
+          }}>
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: levelColor, display: "inline-block" }}/>
+            {level === "--" ? "..." : level}
+          </div>
+        </div>
+
+        {/* Temperature */}
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+            <span>🌡️</span>
+            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>Temperature</p>
+          </div>
+          <p style={{ fontSize: "40px", fontWeight: "700", color: "#f97316", margin: "0 0 8px" }}>
+            {getValue("temperature")} <span style={{ fontSize: "18px" }}>°C</span>
+          </p>
+          <p style={{ fontSize: "12px", color: "#475569", margin: 0 }}>Last update just now</p>
+        </div>
+
+        {/* Humidity */}
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+            <span>💦</span>
+            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>Humidity</p>
+          </div>
+          <p style={{ fontSize: "40px", fontWeight: "700", color: "#06b6d4", margin: "0 0 8px" }}>
+            {getValue("humidity")} <span style={{ fontSize: "18px" }}>%</span>
+          </p>
+          <p style={{ fontSize: "12px", color: "#475569", margin: 0 }}>Last update just now</p>
+        </div>
+
+        {/* Air Pressure */}
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+            <span>🌬️</span>
+            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>Air Pressure</p>
+          </div>
+          <p style={{ fontSize: "40px", fontWeight: "700", color: "#a78bfa", margin: "0 0 8px" }}>
+            {getValue("pressure")} <span style={{ fontSize: "18px" }}>hPa</span>
+          </p>
+          <p style={{ fontSize: "12px", color: "#475569", margin: 0 }}>Last update just now</p>
+        </div>
+
+      </div>
+
+      {/* ===== ROW 2: Rainfall Intensity Chart + Rain Status + Rainfall Percent ===== */}
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "16px", marginBottom: "24px" }}>
+
+        {/* Rainfall Intensity — Line Chart */}
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+            <span>☔</span>
+            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>Rainfall Intensity — Realtime</p>
+          </div>
+          <p style={{ fontSize: "11px", color: "#475569", margin: "0 0 12px" }}>
+            Last 20 readings · updates every 5s
+          </p>
+          {chartData.length < 2 ? (
+            <div style={{ height: "200px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <p style={{ color: "#475569", fontSize: "13px" }}>Collecting data... please wait</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e3a5f" />
+                <XAxis dataKey="time" tick={{ fill: "#475569", fontSize: 10 }} interval="preserveStartEnd" />
+                <YAxis tick={{ fill: "#475569", fontSize: 10 }} />
+                <Tooltip
+                  contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: "8px", fontSize: "12px" }}
+                  labelStyle={{ color: "#94a3b8" }}
+                />
+                <Legend wrapperStyle={{ fontSize: "11px", color: "#94a3b8" }} />
+                <Line type="monotone" dataKey="humidity" stroke="#06b6d4" strokeWidth={2} dot={false} name="Humidity (%)" />
+                <Line type="monotone" dataKey="temperature" stroke="#f97316" strokeWidth={2} dot={false} name="Temperature (°C)" />
+                <Line type="monotone" dataKey="rainPercent" stroke="#fbbf24" strokeWidth={2} dot={false} name="Rain (%)" />
+                <Line type="monotone" dataKey="distance" stroke="#a78bfa" strokeWidth={2} dot={false} name="Distance (cm)" />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* Rain Status */}
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+            <span>🌧️</span>
+            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>Rain Status</p>
+          </div>
+          <p style={{ fontSize: "28px", fontWeight: "700", color: "#38bdf8", margin: "0 0 8px" }}>
+            {getValue("rainStatus")}
+          </p>
+          <p style={{ fontSize: "12px", color: "#475569", margin: 0 }}>Last update just now</p>
+        </div>
+
+        {/* Rainfall Percent */}
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+            <span>📊</span>
+            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>Rainfall Percent</p>
+          </div>
+          <p style={{ fontSize: "40px", fontWeight: "700", color: "#818cf8", margin: "0 0 12px" }}>
+            {getValue("rainPercent")} <span style={{ fontSize: "18px" }}>%</span>
+          </p>
+          <div style={{ background: "#0f172a", borderRadius: "999px", height: "6px", marginBottom: "6px" }}>
+            <div style={{
+              background: rainPercent >= 70 ? "#ef4444" : rainPercent >= 30 ? "#f59e0b" : "#3b82f6",
+              borderRadius: "999px",
+              height: "6px",
+              width: `${Math.min(rainPercent, 100)}%`,
+              transition: "width 0.5s ease"
+            }}/>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#475569" }}>
+            <span>0% Dry</span>
+            <span>30% Light</span>
+            <span>70%+ Heavy</span>
+          </div>
+        </div>
+
       </div>
 
       {/* ===== FOOTER ===== */}
-      <p style={{ textAlign: "center", fontSize: "12px", color: "#9ca3af" }}>
-        FlooDeT © 2025 · Data updates every 5 seconds · Powered by IoT Sensor → ThingsBoard
+      <p style={{ textAlign: "center", fontSize: "12px", color: "#334155" }}>
+        FlooDeT © 2025 · Data updates every 5 seconds · Powered by IoT Sensor → ThingsBoard → Firebase
       </p>
+
+      {/* ===== HISTORY MODAL ===== */}
+      {showHistory && (
+        <div style={{
+          position: "fixed",
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.7)",
+          zIndex: 1000,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "20px",
+        }}>
+          <div style={{
+            background: "#1e293b",
+            borderRadius: "16px",
+            width: "100%",
+            maxWidth: "1000px",
+            maxHeight: "85vh",
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            border: "1px solid #334155",
+          }}>
+
+            {/* Modal Header */}
+            <div style={{
+              padding: "20px 24px",
+              borderBottom: "1px solid #334155",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}>
+              <div>
+                <h2 style={{ fontSize: "18px", fontWeight: "600", margin: 0, color: "white" }}>📊 Sensor History</h2>
+                <p style={{ fontSize: "12px", color: "#64748b", margin: "4px 0 0" }}>
+                  Filter by date or time range, then export to Excel
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowHistory(false); setStartDate(""); setEndDate(""); setTimeFilter(""); }}
+                style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#64748b" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Filter Bar */}
+            <div style={{
+              padding: "16px 24px",
+              borderBottom: "1px solid #334155",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              flexWrap: "wrap",
+              background: "#0f172a",
+            }}>
+              <div style={{ display: "flex", gap: "8px" }}>
+                {[
+                  { label: "1h ago", value: "1" },
+                  { label: "3h ago", value: "3" },
+                  { label: "6h ago", value: "6" },
+                  { label: "12h ago", value: "12" },
+                  { label: "24h ago", value: "24" },
+                ].map(({ label, value }) => (
+                  <button
+                    key={value}
+                    onClick={() => { setTimeFilter(value); setStartDate(""); setEndDate(""); }}
+                    style={{
+                      padding: "6px 12px",
+                      background: timeFilter === value ? "#3b82f6" : "#1e293b",
+                      color: timeFilter === value ? "white" : "#94a3b8",
+                      border: `1px solid ${timeFilter === value ? "#3b82f6" : "#334155"}`,
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      fontWeight: "500",
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <span style={{ color: "#334155" }}>|</span>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <label style={{ fontSize: "12px", color: "#64748b" }}>From:</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={e => { setStartDate(e.target.value); setTimeFilter(""); }}
+                  style={{
+                    padding: "6px 10px", border: "1px solid #334155",
+                    borderRadius: "6px", fontSize: "12px",
+                    background: "#1e293b", color: "white", outline: "none",
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <label style={{ fontSize: "12px", color: "#64748b" }}>To:</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={e => { setEndDate(e.target.value); setTimeFilter(""); }}
+                  style={{
+                    padding: "6px 10px", border: "1px solid #334155",
+                    borderRadius: "6px", fontSize: "12px",
+                    background: "#1e293b", color: "white", outline: "none",
+                  }}
+                />
+              </div>
+
+              <button
+                onClick={() => { setStartDate(""); setEndDate(""); setTimeFilter(""); }}
+                style={{
+                  padding: "6px 12px", background: "#1e293b",
+                  border: "1px solid #334155", borderRadius: "6px",
+                  fontSize: "12px", cursor: "pointer", color: "#94a3b8",
+                }}
+              >
+                Clear
+              </button>
+
+              <div style={{ marginLeft: "auto" }}>
+                <button
+                  onClick={exportToExcel}
+                  style={{
+                    padding: "8px 16px", background: "#16a34a",
+                    color: "white", border: "none", borderRadius: "8px",
+                    fontSize: "13px", fontWeight: "600", cursor: "pointer",
+                  }}
+                >
+                  📥 Export Excel ({history.length} records)
+                </button>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div style={{ overflowY: "auto", flex: 1 }}>
+              {historyLoading ? (
+                <p style={{ textAlign: "center", color: "#64748b", padding: "40px" }}>Loading history...</p>
+              ) : history.length === 0 ? (
+                <p style={{ textAlign: "center", color: "#475569", padding: "40px" }}>No records found.</p>
+              ) : (
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                  <thead style={{ position: "sticky", top: 0 }}>
+                    <tr style={{ background: "#0f172a", borderBottom: "1px solid #334155" }}>
+                      {["Date & Time", "Water (cm)", "Temp (°C)", "Humidity (%)", "Pressure (hPa)", "Rain (%)", "Rain Status"].map(h => (
+                        <th key={h} style={{ padding: "10px 12px", textAlign: "left", color: "#64748b", fontWeight: "600", whiteSpace: "nowrap" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map((record, i) => (
+                      <tr key={record.id} style={{ borderBottom: "1px solid #1e293b", background: i % 2 === 0 ? "#1e293b" : "#172032" }}>
+                        <td style={{ padding: "10px 12px", color: "#94a3b8", whiteSpace: "nowrap" }}>
+                          {record.timestamp ? new Date(record.timestamp).toLocaleString("en-MY") : "-"}
+                        </td>
+                        <td style={{ padding: "10px 12px", color: "#3b82f6", fontWeight: "600" }}>{record.distance ?? "-"}</td>
+                        <td style={{ padding: "10px 12px", color: "#f97316" }}>{record.temperature ?? "-"}</td>
+                        <td style={{ padding: "10px 12px", color: "#06b6d4" }}>{record.humidity ?? "-"}</td>
+                        <td style={{ padding: "10px 12px", color: "#a78bfa" }}>{record.pressure ?? "-"}</td>
+                        <td style={{ padding: "10px 12px", color: "#94a3b8" }}>{record.rainPercent ?? "-"}</td>
+                        <td style={{ padding: "10px 12px", color: "#38bdf8" }}>{record.rainStatus ?? "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );
