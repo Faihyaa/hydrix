@@ -39,7 +39,7 @@ export function useSensorData() {
         setLoading(false);
       },
       (err) => {
-        setError("Gagal sambung ke Firebase");
+        setError("Fail to connect to Firebase");
         setLoading(false);
       }
     );

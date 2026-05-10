@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useSensorData } from "../utils/useSensorsData";
 import { database } from "../../lib/firebase";
 import { ref, onValue, query, orderByChild, limitToLast } from "firebase/database";
@@ -39,7 +39,7 @@ export default function Dashboard() {
   const [endDate, setEndDate] = useState("");
   const [timeFilter, setTimeFilter] = useState("");
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
-  const chartRef = useRef<ChartPoint[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<string>("--");
 
   const level = getValue("level");
   const distance = getValue("distance");
@@ -65,36 +65,63 @@ export default function Dashboard() {
 
   useEffect(() => {
     const clock = setInterval(() => {
-      setCurrentTime(new Date().toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+      setCurrentTime(new Date().toLocaleTimeString("en-MY", {
+        hour: "2-digit", minute: "2-digit", second: "2-digit"
+      }));
     }, 1000);
     return () => clearInterval(clock);
   }, []);
 
-  // ==== REALTIME CHART DATA ====
-const humidityVal = getValue("humidity");
-const temperatureVal = getValue("temperature");
-const rainPctVal = getValue("rainPercent");
-const distVal = getValue("distance");
+  // ==== FIX: REALTIME CHART — direct Firebase listener, not dependent on getValue ====
+  useEffect(() => {
+    const sensorRef = ref(database, "sensorData/latest");
 
-useEffect(() => {
-  if (humidityVal === "--" && temperatureVal === "--") return;
+    const unsubscribe = onValue(sensorRef, (snapshot) => {
+      const val = snapshot.val();
+      if (!val) return;
 
-  const time = new Date().toLocaleTimeString("en-MY", {
-    hour: "2-digit", minute: "2-digit", second: "2-digit"
-  });
+      // Update last-updated time using the Firebase timestamp field
+      if (val.timestamp) {
+        const d = new Date(
+          typeof val.timestamp === "number" ? val.timestamp : Number(val.timestamp)
+        );
+        setLastUpdated(
+          d.toLocaleTimeString("en-MY", {
+            hour: "2-digit", minute: "2-digit", second: "2-digit"
+          })
+        );
+      }
 
-  const newPoint: ChartPoint = {
-    time,
-    humidity: parseFloat(humidityVal) || null,
-    temperature: parseFloat(temperatureVal) || null,
-    rainPercent: parseFloat(rainPctVal) || null,
-    distance: parseFloat(distVal) || null,
-  };
+      const time = new Date().toLocaleTimeString("en-MY", {
+        hour: "2-digit", minute: "2-digit", second: "2-digit"
+      });
 
-  const updated = [...chartRef.current, newPoint].slice(-20);
-  chartRef.current = updated;
-  setChartData([...updated]);
-}, [humidityVal, temperatureVal, rainPctVal, distVal]);
+      const newPoint: ChartPoint = {
+        time,
+        humidity: parseFloat(val.humidity) || null,
+        temperature: parseFloat(val.temperature) || null,
+        rainPercent: parseFloat(val.rainPercent) || null,
+        distance: parseFloat(val.distance) || null,
+      };
+
+      // Only add a new point if something actually changed
+      setChartData(prev => {
+        const last = prev[prev.length - 1];
+        if (
+          last &&
+          last.humidity === newPoint.humidity &&
+          last.temperature === newPoint.temperature &&
+          last.rainPercent === newPoint.rainPercent &&
+          last.distance === newPoint.distance
+        ) {
+          return prev; // no change, don't add duplicate point
+        }
+        return [...prev, newPoint].slice(-20);
+      });
+    });
+
+    return () => unsubscribe();
+  }, []); // runs once on mount, listens forever
 
   // ==== FETCH HISTORY FROM REALTIME DATABASE ====
   useEffect(() => {
@@ -111,6 +138,14 @@ useEffect(() => {
       const records: HistoryRecord[] = [];
       snapshot.forEach((child) => {
         const data = child.val();
+        // Handle both Unix ms number and string timestamps
+        let isoTimestamp: string | null = null;
+        if (data.timestamp) {
+          const ts = typeof data.timestamp === "number"
+            ? data.timestamp
+            : Number(data.timestamp);
+          isoTimestamp = isNaN(ts) ? null : new Date(ts).toISOString();
+        }
         records.push({
           id: child.key || "",
           distance: data.distance ?? null,
@@ -120,9 +155,7 @@ useEffect(() => {
           rainPercent: data.rainPercent ?? null,
           rainStatus: data.rainStatus ?? null,
           level: data.level ?? null,
-          timestamp: data.timestamp
-            ? new Date(data.timestamp).toISOString()
-            : null,
+          timestamp: isoTimestamp,
         });
       });
       const sorted = records.reverse(); // latest first
@@ -174,7 +207,7 @@ useEffect(() => {
       "Water Level (cm)": record.distance ?? "-",
       "Temperature (°C)": record.temperature ?? "-",
       "Humidity (%)": record.humidity ?? "-",
-      "Air Pressure (hPa)": record.pressure ?? "-",
+      "Pressure (hPa)": record.pressure ?? "-",
       "Rainfall (%)": record.rainPercent ?? "-",
       "Rain Status": record.rainStatus ?? "-",
     }));
@@ -204,7 +237,11 @@ useEffect(() => {
       {/* ===== HEADER ===== */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>
+          <div style={{
+            width: "40px", height: "40px", borderRadius: "10px",
+            background: "#3b82f6", display: "flex", alignItems: "center",
+            justifyContent: "center", fontSize: "20px"
+          }}>
             🌊
           </div>
           <div>
@@ -243,16 +280,24 @@ useEffect(() => {
             alignItems: "center",
             gap: "6px",
           }}>
-            <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: levelColor, display: "inline-block" }}/>
+            <span style={{
+              width: "7px", height: "7px", borderRadius: "50%",
+              background: levelColor, display: "inline-block"
+            }}/>
             {level === "--" ? "..." : level}
           </div>
-          <span style={{ fontSize: "12px", color: "#64748b" }}>
-            Realtime · {currentTime}
-          </span>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: "12px", color: "#64748b" }}>
+              Clock · {currentTime}
+            </div>
+            <div style={{ fontSize: "11px", color: "#475569" }}>
+              Last data · {lastUpdated}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ===== ROW 1: Water Level + Temp + Humidity + Air Pressure ===== */}
+      {/* ===== ROW 1: Water Level + Temp + Humidity + Pressure ===== */}
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: "16px", marginBottom: "16px" }}>
 
         {/* Water Level */}
@@ -296,7 +341,7 @@ useEffect(() => {
           <p style={{ fontSize: "40px", fontWeight: "700", color: "#f97316", margin: "0 0 8px" }}>
             {getValue("temperature")} <span style={{ fontSize: "18px" }}>°C</span>
           </p>
-          <p style={{ fontSize: "12px", color: "#475569", margin: 0 }}>Last update just now</p>
+          <p style={{ fontSize: "12px", color: "#475569", margin: 0 }}>Last update · {lastUpdated}</p>
         </div>
 
         {/* Humidity */}
@@ -308,52 +353,63 @@ useEffect(() => {
           <p style={{ fontSize: "40px", fontWeight: "700", color: "#06b6d4", margin: "0 0 8px" }}>
             {getValue("humidity")} <span style={{ fontSize: "18px" }}>%</span>
           </p>
-          <p style={{ fontSize: "12px", color: "#475569", margin: 0 }}>Last update just now</p>
+          <p style={{ fontSize: "12px", color: "#475569", margin: 0 }}>Last update · {lastUpdated}</p>
         </div>
 
-        {/* Air Pressure */}
+        {/* Pressure */}
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
             <span>🌬️</span>
-            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>Air Pressure</p>
+            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>Pressure</p>
           </div>
           <p style={{ fontSize: "40px", fontWeight: "700", color: "#a78bfa", margin: "0 0 8px" }}>
             {getValue("pressure")} <span style={{ fontSize: "18px" }}>hPa</span>
           </p>
-          <p style={{ fontSize: "12px", color: "#475569", margin: 0 }}>Last update just now</p>
+          <p style={{ fontSize: "12px", color: "#475569", margin: 0 }}>Last update · {lastUpdated}</p>
         </div>
 
       </div>
 
-      {/* ===== ROW 2: Rainfall Intensity Chart + Rain Status + Rainfall Percent ===== */}
+      {/* ===== ROW 2: Realtime Chart + Rain Status + Rainfall Percent ===== */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "16px", marginBottom: "16px" }}>
 
-        {/* Rainfall Intensity — Line Chart */}
+        {/* Realtime Line Chart */}
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
             <span>☔</span>
-            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>Rainfall Intensity — Realtime</p>
+            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>Sensor Readings — Realtime</p>
           </div>
           <p style={{ fontSize: "11px", color: "#475569", margin: "0 0 12px" }}>
-            Last 20 readings · updates every 5s
+            Last 20 readings · updates on every Firebase change
           </p>
           {chartData.length < 2 ? (
             <div style={{ height: "200px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <p style={{ color: "#475569", fontSize: "13px" }}>Collecting data... please wait</p>
+              <p style={{ color: "#475569", fontSize: "13px" }}>
+                Collecting data... waiting for sensor updates
+              </p>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e3a5f" />
-                <XAxis dataKey="time" tick={{ fill: "#475569", fontSize: 10 }} interval="preserveStartEnd" />
+                <XAxis
+                  dataKey="time"
+                  tick={{ fill: "#475569", fontSize: 10 }}
+                  interval="preserveStartEnd"
+                />
                 <YAxis tick={{ fill: "#475569", fontSize: 10 }} />
                 <Tooltip
-                  contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: "8px", fontSize: "12px" }}
+                  contentStyle={{
+                    background: "#0f172a",
+                    border: "1px solid #334155",
+                    borderRadius: "8px",
+                    fontSize: "12px"
+                  }}
                   labelStyle={{ color: "#94a3b8" }}
                 />
                 <Legend wrapperStyle={{ fontSize: "11px", color: "#94a3b8" }} />
                 <Line type="monotone" dataKey="humidity" stroke="#06b6d4" strokeWidth={2} dot={false} name="Humidity (%)" />
-                <Line type="monotone" dataKey="temperature" stroke="#f97316" strokeWidth={2} dot={false} name="Temperature (°C)" />
+                <Line type="monotone" dataKey="temperature" stroke="#f97316" strokeWidth={2} dot={false} name="Temp (°C)" />
                 <Line type="monotone" dataKey="rainPercent" stroke="#fbbf24" strokeWidth={2} dot={false} name="Rain (%)" />
                 <Line type="monotone" dataKey="distance" stroke="#a78bfa" strokeWidth={2} dot={false} name="Distance (cm)" />
               </LineChart>
@@ -370,7 +426,7 @@ useEffect(() => {
           <p style={{ fontSize: "28px", fontWeight: "700", color: "#38bdf8", margin: "0 0 8px" }}>
             {getValue("rainStatus")}
           </p>
-          <p style={{ fontSize: "12px", color: "#475569", margin: 0 }}>Last update just now</p>
+          <p style={{ fontSize: "12px", color: "#475569", margin: 0 }}>Last update · {lastUpdated}</p>
         </div>
 
         {/* Rainfall Percent */}
