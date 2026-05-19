@@ -1,7 +1,7 @@
 
-  # FlooDeT Website Design
+  # HydriX Website Design
 
-  This is a code bundle for FlooDeT Website Design. The original project is available at https://www.figma.com/design/AJHmU0zBo0Nb5BDayPLOyg/FlooDeT-Website-Design.
+  This is a code bundle for HydriX Website Design. The original project is available at https://www.figma.com/design/AJHmU0zBo0Nb5BDayPLOyg/HydriX-Website-Design.
 
   ## Running the code
 

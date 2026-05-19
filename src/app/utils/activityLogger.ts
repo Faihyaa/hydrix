@@ -17,7 +17,7 @@ export function logActivity(
   details: string,
   category: 'sensor' | 'threshold' | 'system'
 ): void {
-  const logs: ActivityLog[] = JSON.parse(localStorage.getItem('floodet_activity_logs') || '[]');
+  const logs: ActivityLog[] = JSON.parse(localStorage.getItem('hydrix_activity_logs') || '[]');
   
   const now = new Date();
   const newLog: ActivityLog = {
@@ -39,13 +39,13 @@ export function logActivity(
     logs.splice(500);
   }
   
-  localStorage.setItem('floodet_activity_logs', JSON.stringify(logs));
+  localStorage.setItem('hydrix_activity_logs', JSON.stringify(logs));
 }
 
 export function getActivityLogs(): ActivityLog[] {
-  return JSON.parse(localStorage.getItem('floodet_activity_logs') || '[]');
+  return JSON.parse(localStorage.getItem('hydrix_activity_logs') || '[]');
 }
 
 export function clearActivityLogs(): void {
-  localStorage.setItem('floodet_activity_logs', '[]');
+  localStorage.setItem('hydrix_activity_logs', '[]');
 }
