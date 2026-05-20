@@ -27,7 +27,7 @@ export default function Login() {
         if (success.role === 'admin') {
           navigate('/admin/users');
         } else {
-          navigate('/dashboard');
+          navigate('/');
         }
       } else {
         toast.error('Invalid email or password');

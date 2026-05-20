@@ -12,12 +12,28 @@ import AdminHistory from './pages/AdminHistory';
 import AdminUsers from './pages/AdminUsers';
 import NotFound from './pages/NotFound';
 import { Layout } from './components/Layout';
-import { PublicLayout } from './components/PublicLayout';
 import { AdminLayout } from './components/AdminLayout';
+
+function HomeRoute() {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role.toLowerCase() === 'admin') return <Navigate to="/admin/users" replace />;
+  return (
+    <AuthLayout>
+      <Home />
+    </AuthLayout>
+  );
+}
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   return user ? <>{children}</> : <Navigate to="/login" replace />;
+}
+
+function AuthLayout({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  return user.role === 'admin' ? <AdminLayout>{children}</AdminLayout> : <Layout>{children}</Layout>;
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
@@ -27,58 +43,90 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function PublicPage({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
-  if (user) return <Layout>{children}</Layout>;
-  return <PublicLayout>{children}</PublicLayout>;
-}
-
-function PublicGuestPage({ children }: { children: React.ReactNode }) {
+function GuestRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   if (user) {
-    return user.role === 'admin' ? <Navigate to="/admin/users" replace /> : <Navigate to="/dashboard" replace />;
+    return user.role === 'admin' ? <Navigate to="/admin/users" replace /> : <Navigate to="/" replace />;
   }
-  return <PublicLayout>{children}</PublicLayout>;
+  return <>{children}</>;
 }
 
 export const router = createBrowserRouter([
   {
     path: '/login',
-    element: <PublicGuestPage><Login /></PublicGuestPage>
+    element: (
+      <GuestRoute>
+        <Login />
+      </GuestRoute>
+    )
   },
   {
     path: '/signup',
-    element: <PublicGuestPage><Signup /></PublicGuestPage>
+    element: (
+      <GuestRoute>
+        <Signup />
+      </GuestRoute>
+    )
   },
   {
     path: '/forgot-password',
-    element: <PublicGuestPage><ForgotPassword /></PublicGuestPage>
+    element: (
+      <GuestRoute>
+        <ForgotPassword />
+      </GuestRoute>
+    )
   },
   {
     path: '/',
-    element: <PublicPage><Home /></PublicPage>
+    element: <HomeRoute />
   },
   {
     path: '/about',
-    element: <PublicPage><AboutUs /></PublicPage>
+    element: (
+      <PrivateRoute>
+        <AuthLayout>
+          <AboutUs />
+        </AuthLayout>
+      </PrivateRoute>
+    )
   },
   {
     path: '/functionality',
-    element: <PublicPage><Functionality /></PublicPage>
+    element: (
+      <PrivateRoute>
+        <AuthLayout>
+          <Functionality />
+        </AuthLayout>
+      </PrivateRoute>
+    )
   },
   {
     path: '/dashboard',
     element: (
       <PrivateRoute>
-        <Layout>
+        <AuthLayout>
           <Dashboard />
-        </Layout>
+        </AuthLayout>
       </PrivateRoute>
     )
   },
   {
+    path: '/admin',
+    element: (
+      <AdminRoute>
+        <Navigate to="/admin/users" replace />
+      </AdminRoute>
+    )
+  },
+  {
     path: '/contact',
-    element: <PublicPage><Contact /></PublicPage>
+    element: (
+      <PrivateRoute>
+        <AuthLayout>
+          <Contact />
+        </AuthLayout>
+      </PrivateRoute>
+    )
   },
   {
     path: '/admin/history',
