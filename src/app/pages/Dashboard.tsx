@@ -1,14 +1,18 @@
 import { useState, useEffect } from "react";
+<<<<<<< HEAD
 import { useSensorData } from "../utils/useSensorsData";
 import { database } from "../../lib/firebase";
 import { ref, onValue, query, orderByChild, limitToLast } from "firebase/database";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+=======
+>>>>>>> 8c9334e9 (Integrate EmailJS flood warning and alert notifications)
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
 } from "recharts";
 
+<<<<<<< HEAD
 interface HistoryRecord {
   id: string;
   distance: string | null;
@@ -19,6 +23,68 @@ interface HistoryRecord {
   rainStatus: string | null;
   level: string | null;
   timestamp: string | null;
+=======
+// ── palette ───────────────────────────────────────────────────────────────────
+const C = {
+  bg:     "#12161c",
+  card:   "#1a2030",
+  border: "#252d3d",
+  header: "#1e2738",
+  text:   "#e2e8f0",
+  muted:  "#6b7fa3",
+  cyan:   "#22d3ee",
+  orange: "#f97316",
+  purple: "#a78bfa",
+  green:  "#22c55e",
+  red:    "#ef4444",
+  yellow: "#eab308",
+};
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+function fmtTime(d) {
+  return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+/*function genPt(prev) {
+  return {
+    time:              fmtTime(new Date()),
+    rainfallIntensity: Math.max(0,   Math.min(100,  (prev?.rainfallIntensity ?? 0)    + (Math.random() - 0.5) * 12)),
+    humidity:          Math.max(0,   Math.min(100,  (prev?.humidity          ?? 45)   + (Math.random() - 0.5) * 4)),
+    temperature:       Math.max(20,  Math.min(40,   (prev?.temperature       ?? 26)   + (Math.random() - 0.5) * 1.2)),
+    rainPercent:       Math.max(0,   Math.min(100,  (prev?.rainPercent       ?? 0)    + (Math.random() - 0.5) * 8)),
+    waterLevel:        Math.max(0,   Math.min(300,  (prev?.waterLevel        ?? 21.52)+ (Math.random() - 0.5) * 0.5)),
+  };
+}*/
+
+function genPt(prev) {
+  // random rain burst trigger (more frequent heavy rain)
+  const rainBurst = Math.random() < 0.35; // 35% chance heavy rain spike
+
+  const baseRain = prev?.rainfallIntensity ?? 0;
+  const basePercent = prev?.rainPercent ?? 0;
+  const baseWater = prev?.waterLevel ?? 21.52;
+
+  const rainIntensity = rainBurst
+    ? 60 + Math.random() * 40   // HEAVY RAIN SPIKE (60–100)
+    : Math.max(0, Math.min(100, baseRain + (Math.random() - 0.5) * 15));
+
+  const rainPercent = rainBurst
+    ? 50 + Math.random() * 50   // pushes into WARNING/HEAVY often
+    : Math.max(0, Math.min(100, basePercent + (Math.random() - 0.5) * 12));
+
+  const waterLevel = rainBurst
+    ? Math.min(300, baseWater + 5 + Math.random() * 12) // fast rising water
+    : Math.max(0, Math.min(300, baseWater + (Math.random() - 0.5) * 0.8));
+
+  return {
+    time: fmtTime(new Date()),
+    rainfallIntensity: rainIntensity,
+    humidity: Math.max(0, Math.min(100, (prev?.humidity ?? 45) + (Math.random() - 0.5) * 5)),
+    temperature: Math.max(20, Math.min(40, (prev?.temperature ?? 26) + (Math.random() - 0.5) * 1.5)),
+    rainPercent,
+    waterLevel,
+  };
+>>>>>>> 8c9334e9 (Integrate EmailJS flood warning and alert notifications)
 }
 
 interface ChartPoint {
@@ -232,7 +298,11 @@ export default function Dashboard() {
   };
 
   return (
+<<<<<<< HEAD
     <div style={{ padding: "24px", background: "#0f172a", minHeight: "100vh" }}>
+=======
+      <div style={{ minHeight: "100vh", background: C.bg, color: C.text }}>
+>>>>>>> 8c9334e9 (Integrate EmailJS flood warning and alert notifications)
 
       {/* ===== HEADER ===== */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
@@ -296,6 +366,7 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+<<<<<<< HEAD
 
       {/* ===== ROW 1: Water Level + Temp + Humidity + Pressure ===== */}
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: "16px", marginBottom: "16px" }}>
@@ -637,5 +708,7 @@ export default function Dashboard() {
       )}
 
     </div>
+=======
+>>>>>>> 8c9334e9 (Integrate EmailJS flood warning and alert notifications)
   );
 }

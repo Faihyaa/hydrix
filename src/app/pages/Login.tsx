@@ -24,7 +24,7 @@ export default function Login() {
       const success = await login(email, password);
       if (success) {
         toast.success('Login successful!');
-        if (success.role === 'admin') {
+        if (success.role === 'Admin') {
           navigate('/admin/users');
         } else {
           navigate('/');

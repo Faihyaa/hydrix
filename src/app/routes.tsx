@@ -17,7 +17,11 @@ import { AdminLayout } from './components/AdminLayout';
 function HomeRoute() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
+<<<<<<< HEAD
   if (user.role.toLowerCase() === 'admin') return <Navigate to="/admin/users" replace />;
+=======
+  if (user.role === 'Admin') return <Navigate to="/admin/users" replace />;
+>>>>>>> 8c9334e9 (Integrate EmailJS flood warning and alert notifications)
   return (
     <AuthLayout>
       <Home />
@@ -33,20 +37,28 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 function AuthLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
+<<<<<<< HEAD
   return user.role === 'admin' ? <AdminLayout>{children}</AdminLayout> : <Layout>{children}</Layout>;
+=======
+  return user.role === 'Admin' ? <AdminLayout>{children}</AdminLayout> : <Layout>{children}</Layout>;
+>>>>>>> 8c9334e9 (Integrate EmailJS flood warning and alert notifications)
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== 'admin') return <Navigate to="/" replace />;
+  if (user.role !== 'Admin') return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
 function GuestRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   if (user) {
+<<<<<<< HEAD
     return user.role === 'admin' ? <Navigate to="/admin/users" replace /> : <Navigate to="/" replace />;
+=======
+    return user.role === 'Admin' ? <Navigate to="/admin/users" replace /> : <Navigate to="/dashboard" replace />;
+>>>>>>> 8c9334e9 (Integrate EmailJS flood warning and alert notifications)
   }
   return <>{children}</>;
 }

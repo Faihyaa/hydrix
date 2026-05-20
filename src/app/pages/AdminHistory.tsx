@@ -131,22 +131,6 @@ export default function AdminHistory() {
                     All
                   </Button>
                   <Button
-                    variant={filterCategory === 'sensor' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFilterCategory('sensor')}
-                    className={filterCategory === 'sensor' ? 'bg-blue-600' : ''}
-                  >
-                    Sensors
-                  </Button>
-                  <Button
-                    variant={filterCategory === 'threshold' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFilterCategory('threshold')}
-                    className={filterCategory === 'threshold' ? 'bg-blue-600' : ''}
-                  >
-                    Thresholds
-                  </Button>
-                  <Button
                     variant={filterCategory === 'system' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setFilterCategory('system')}
