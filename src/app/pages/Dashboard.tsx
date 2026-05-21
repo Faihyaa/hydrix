@@ -127,7 +127,7 @@ export default function Dashboard() {
     const historyRef = query(
       ref(database, "sensorHistory"),
       orderByChild("timestamp"),
-      limitToLast(200)
+      limitToLast(1000)
     );
 
     const unsubscribe = onValue(historyRef, (snapshot) => {
