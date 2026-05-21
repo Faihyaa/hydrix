@@ -4,8 +4,7 @@ import cors from "cors";
 import nodemailer from "nodemailer";
 import admin from "firebase-admin";
 
-const serviceAccount = JSON.parse(
-  Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString("utf8")
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT
 );
 
 admin.initializeApp({
