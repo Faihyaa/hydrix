@@ -40,6 +40,7 @@ export default function Dashboard() {
   const [timeFilter, setTimeFilter] = useState("");
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
   const [lastUpdated, setLastUpdated] = useState<string>("--");
+  const [chartReady, setChartReady] = useState(false); // ← NEW: track if initial load done
 
   const level = getValue("level");
   const distance = getValue("distance");
@@ -72,7 +73,43 @@ export default function Dashboard() {
     return () => clearInterval(clock);
   }, []);
 
-  // ==== REALTIME CHART ====
+  // ==== FIX 1: LOAD INITIAL CHART DATA FROM sensorHistory ====
+  // This runs once on mount — so graph shows immediately on page load
+  useEffect(() => {
+    const historyRef = query(
+      ref(database, "sensorHistory"),
+      orderByChild("timestamp"),
+      limitToLast(20)
+    );
+
+    const unsubscribe = onValue(historyRef, (snapshot) => {
+      const points: ChartPoint[] = [];
+      snapshot.forEach((child) => {
+        const d = child.val();
+        const ts = typeof d.timestamp === "number" ? d.timestamp : Number(d.timestamp);
+        const time = isNaN(ts)
+          ? "--:--"
+          : new Date(ts).toLocaleTimeString("en-MY", {
+              hour: "2-digit", minute: "2-digit", second: "2-digit"
+            });
+
+        points.push({
+          time,
+          humidity: parseFloat(d.humidity) || null,
+          temperature: parseFloat(d.temperature) || null,
+          rainPercent: parseFloat(d.rainPercent) || null,
+          distance: parseFloat(d.distance) || null,
+        });
+      });
+
+      setChartData(points);
+      setChartReady(true); // ← done loading history
+    }, { onlyOnce: true }); // ← read once only for init
+
+    return () => unsubscribe();
+  }, []);
+
+  // ==== FIX 2: REALTIME CHART — append new points after history loaded ====
   useEffect(() => {
     const sensorRef = ref(database, "sensorData/latest");
     const unsubscribe = onValue(sensorRef, (snapshot) => {
@@ -104,6 +141,7 @@ export default function Dashboard() {
 
       setChartData(prev => {
         const last = prev[prev.length - 1];
+        // Skip if data sama dengan sebelum (no change)
         if (
           last &&
           last.humidity === newPoint.humidity &&
@@ -259,7 +297,6 @@ export default function Dashboard() {
   };
 
   return (
-    // ── ROOT: locked to viewport, no scroll ──
     <div style={{
       padding: "12px 16px",
       background: "#0f1117",
@@ -436,7 +473,7 @@ export default function Dashboard() {
 
       </div>
 
-      {/* ===== ROW 2: REALTIME CHART — fills remaining height ===== */}
+      {/* ===== ROW 2: REALTIME CHART ===== */}
       <div style={{
         ...card,
         flex: 1,
@@ -452,11 +489,15 @@ export default function Dashboard() {
           Last 20 readings · updates on every Firebase change
         </p>
 
-        {/* Chart area fills remaining flex space */}
         <div style={{ flex: 1, minHeight: 0 }}>
-          {chartData.length < 2 ? (
+          {/* FIX: Tunjuk loading dulu, pastu chart terus render bila chartReady */}
+          {!chartReady ? (
             <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <p style={{ color: "#475569", fontSize: "13px" }}>Collecting data... waiting for sensor updates</p>
+              <p style={{ color: "#475569", fontSize: "13px" }}>Loading chart data...</p>
+            </div>
+          ) : chartData.length === 0 ? (
+            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <p style={{ color: "#475569", fontSize: "13px" }}>No data available yet — waiting for sensor updates</p>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
@@ -627,7 +668,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Table — scrollable inside modal only */}
+            {/* Table */}
             <div style={{ overflowY: "auto", flex: 1 }}>
               {historyLoading ? (
                 <p style={{ textAlign: "center", color: "#6b7a99", padding: "40px" }}>Loading history...</p>
