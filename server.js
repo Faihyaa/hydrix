@@ -155,7 +155,7 @@ async function fetchFromThingsBoard() {
     throw new Error("ThingsBoard login returned no token — check TB_EMAIL and TB_PASSWORD in .env");
   }
 
-  const keys = "distance,temperature,humidity,pressure,rainPercent,rainStatus,level";
+  const keys = "distance,temperature,humidity,rainPercent,rainStatus,level";
   const telemetryRes = await fetch(
     `${TB_URL}/api/plugins/telemetry/DEVICE/${TB_DEVICE_ID}/values/timeseries?keys=${keys}&useStrictDataTypes=false&limit=1`,
     { headers: { "X-Authorization": `Bearer ${jwtToken}` } }
@@ -298,7 +298,6 @@ async function checkAndSave() {
       distance: data.distance?.[0]?.value ?? null,
       temperature: data.temperature?.[0]?.value ?? null,
       humidity: data.humidity?.[0]?.value ?? null,
-      pressure: data.pressure?.[0]?.value ?? null,
       rainPercent: data.rainPercent?.[0]?.value ?? null,
       rainStatus: data.rainStatus?.[0]?.value ?? null,
       level: data.level?.[0]?.value ?? null,
