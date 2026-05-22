@@ -38,6 +38,25 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// ==== GET RECIPIENTS FROM FIRESTORE ====
+async function getAlertRecipients() {
+  try {
+    const snapshot = await firestore
+      .collection("users")
+      .where("alertEnabled", "==", true)
+      .get();
+    const emails = [];
+    snapshot.forEach((doc) => {
+      if (doc.data().email) emails.push(doc.data().email);
+    });
+    console.log(`📋 Found ${emails.length} subscribed users`);
+    return emails;
+  } catch (err) {
+    console.error("❌ Firestore read failed:", err.message);
+    return ALERT_RECIPIENTS ? ALERT_RECIPIENTS.split(",") : [];
+  }
+}
+
 // ==== EMAIL COOLDOWN ====
 let lastEmailTime = 0;
 const EMAIL_COOLDOWN = 10 * 60 * 1000; // 10 minutes
@@ -49,6 +68,12 @@ async function sendAlertEmail(alertData) {
     console.log("📧 Email cooldown active, skipping...");
     return;
   }
+
+  const recipients = await getAlertRecipients();
+if (recipients.length === 0) {
+  console.log("⚠️ No recipients found, skipping email.");
+  return;
+}
 
   const { level, distance, rainStatus, temperature, humidity } = alertData;
   const isAlert = level === "ALERT";
@@ -106,7 +131,7 @@ async function sendAlertEmail(alertData) {
   try {
     await transporter.sendMail({
       from: `"FlooDeT Alert" <${GMAIL_USER}>`,
-      to: ALERT_RECIPIENTS,
+      to: recipients.join(","),
       subject: `${emoji} FlooDeT ${level}: Flood ${isAlert ? "DETECTED" : "WARNING"} - ${time}`,
       html,
     });
