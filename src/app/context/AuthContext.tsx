@@ -1,4 +1,36 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+  updateProfile,
+} from 'firebase/auth';
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+} from 'firebase/firestore';
+import { initializeApp, getApps } from 'firebase/app';
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+};
+
+const firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const auth = getAuth(firebaseApp);
+const firestore = getFirestore(firebaseApp);
 
 interface User {
   id: string;
@@ -10,88 +42,103 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  loading: boolean;
   login: (email: string, password: string) => Promise<User | null>;
   loginWithGmail: () => Promise<void>;
-  signup: (
-    email: string,
-    password: string,
-    name: string,
-    notifications: boolean
-  ) => Promise<boolean>;
+  signup: (email: string, password: string, name: string, notifications: boolean) => Promise<boolean>;
   logout: () => void;
-  updateNotificationPreference: (enabled: boolean) => void;
+  updateNotificationPreference: (enabled: boolean) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+async function saveUserToFirestore(uid: string, data: {
+  email: string;
+  name: string;
+  role: string;
+  notifications: boolean;
+}) {
+  await setDoc(doc(firestore, 'users', uid), {
+    email: data.email,
+    name: data.name,
+    role: data.role,
+    alertEnabled: data.notifications,
+    createdAt: Date.now(),
+  }, { merge: true });
+
+  try {
+    await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uid,
+        email: data.email,
+        name: data.name,
+        notifications: data.notifications,
+      }),
+    });
+  } catch (err) {
+    console.warn('Backend register failed:', err);
+  }
+}
+
+async function getUserFromFirestore(uid: string): Promise<User | null> {
+  const snap = await getDoc(doc(firestore, 'users', uid));
+  if (!snap.exists()) return null;
+  const d = snap.data();
+  return {
+    id: uid,
+    email: d.email,
+    name: d.name,
+    role: d.role === 'Admin' ? 'Admin' : 'User',
+    notifications: d.alertEnabled ?? true,
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const normalizeRole = (role: string) =>
-    role.toLowerCase() === 'admin' ? 'Admin' : 'User';
-
-  // Load user on refresh
   useEffect(() => {
-    const savedUser = localStorage.getItem('hydrix_user');
-    if (savedUser) {
-      const parsedUser = JSON.parse(savedUser);
-      setUser({
-        ...parsedUser,
-        role: normalizeRole(parsedUser.role || 'user')
-      });
-    }
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const userData = await getUserFromFirestore(firebaseUser.uid);
+        setUser(userData);
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+    return unsubscribe;
   }, []);
 
   const login = async (email: string, password: string): Promise<User | null> => {
-    // Core admin
-    if (email === 'admin@hydrix.com' && password === 'admin123') {
-      const adminUser: User = {
-        id: 'admin',
-        email: 'admin@hydrix.com',
-        name: 'Core Admin',
-        role: 'Admin',
-        notifications: true
-      };
-
-      setUser(adminUser);
-      localStorage.setItem('hydrix_user', JSON.stringify(adminUser));
-      return adminUser;
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const userData = await getUserFromFirestore(cred.user.uid);
+      setUser(userData);
+      return userData;
+    } catch (err: any) {
+      console.error('Login failed:', err.message);
+      return null;
     }
-
-    // Normal users
-    const users = JSON.parse(localStorage.getItem('hydrix_users') || '[]');
-
-    const foundUser = users.find(
-      (u: any) => u.email === email && u.password === password
-    );
-
-    if (!foundUser) return null;
-
-    const userData: User = {
-      id: foundUser.id,
-      email: foundUser.email,
-      name: foundUser.name,
-      role: normalizeRole(foundUser.role || 'user'),
-      notifications: foundUser.notifications
-    };
-
-    setUser(userData);
-    localStorage.setItem('hydrix_user', JSON.stringify(userData));
-
-    return userData;
   };
 
   const loginWithGmail = async () => {
-    const mockGmailUser: User = {
-      id: 'gmail_' + Date.now(),
-      email: 'user@gmail.com',
-      name: 'Gmail User',
-      role: 'User',
-      notifications: true
-    };
-
-    setUser(mockGmailUser);
-    localStorage.setItem('hydrix_user', JSON.stringify(mockGmailUser));
+    const provider = new GoogleAuthProvider();
+    const cred = await signInWithPopup(auth, provider);
+    const uid = cred.user.uid;
+    const existing = await getUserFromFirestore(uid);
+    if (!existing) {
+      await saveUserToFirestore(uid, {
+        email: cred.user.email!,
+        name: cred.user.displayName || 'User',
+        role: 'User',
+        notifications: true,
+      });
+    }
+    const userData = await getUserFromFirestore(uid);
+    setUser(userData);
   };
 
   const signup = async (
@@ -100,71 +147,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     name: string,
     notifications: boolean
   ): Promise<boolean> => {
-    const users = JSON.parse(localStorage.getItem('hydrix_users') || '[]');
-
-    if (users.find((u: any) => u.email === email)) {
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(cred.user, { displayName: name });
+      await saveUserToFirestore(cred.user.uid, {
+        email, name, role: 'User', notifications,
+      });
+      const userData = await getUserFromFirestore(cred.user.uid);
+      setUser(userData);
+      return true;
+    } catch (err: any) {
+      console.error('Signup failed:', err.message);
       return false;
     }
-
-    const newUser = {
-      id: 'user_' + Date.now(),
-      email,
-      password,
-      name,
-      role: 'User' as const,
-      notifications
-    };
-
-    users.push(newUser);
-    localStorage.setItem('hydrix_users', JSON.stringify(users));
-
-    const userData: User = {
-      id: newUser.id,
-      email: newUser.email,
-      name: newUser.name,
-      role: newUser.role,
-      notifications: newUser.notifications
-    };
-
-    setUser(userData);
-    localStorage.setItem('hydrix_user', JSON.stringify(userData));
-
-    return true;
   };
 
   const logout = () => {
+    signOut(auth);
     setUser(null);
-    localStorage.removeItem('hydrix_user');
   };
 
-  const updateNotificationPreference = (enabled: boolean) => {
+  const updateNotificationPreference = async (enabled: boolean) => {
     if (!user) return;
-
-    const updatedUser = { ...user, notifications: enabled };
-
-    setUser(updatedUser);
-    localStorage.setItem('hydrix_user', JSON.stringify(updatedUser));
-
-    const users = JSON.parse(localStorage.getItem('hydrix_users') || '[]');
-
-    const updatedUsers = users.map((u: any) =>
-      u.id === user.id ? { ...u, notifications: enabled } : u
-    );
-
-    localStorage.setItem('hydrix_users', JSON.stringify(updatedUsers));
+    await updateDoc(doc(firestore, 'users', user.id), { alertEnabled: enabled });
+    setUser({ ...user, notifications: enabled });
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        login,
-        loginWithGmail,
-        signup,
-        logout,
-        updateNotificationPreference
-      }}
-    >
+    <AuthContext.Provider value={{
+      user, loading, login, loginWithGmail, signup, logout, updateNotificationPreference
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -172,10 +184,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 }

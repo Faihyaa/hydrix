@@ -12,6 +12,7 @@ admin.initializeApp({
   databaseURL: "https://floodet2-default-rtdb.asia-southeast1.firebasedatabase.app",
 });
 const db = admin.database();
+const firestore = admin.firestore();
 
 const app = express();
 app.use(cors());
@@ -248,7 +249,31 @@ app.get("/api/history", async (req, res) => {
   }
 });
 
-// ==== ENDPOINT 6: Health check — use this to debug connection issues ====
+// ==== ENDPOINT 6: User register (simpan ke Firestore) ====
+app.post("/api/users/register", async (req, res) => {
+  const { uid, email, name, notifications } = req.body;
+  
+  if (!uid || !email) {
+    return res.status(400).json({ error: "uid and email required" });
+  }
+
+  try {
+    await firestore.collection("users").doc(uid).set({
+      email,
+      name: name || "",
+      alertEnabled: notifications ?? true,
+      createdAt: Date.now(),
+    }, { merge: true });
+
+    console.log(`✅ User registered: ${email}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Register failed:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==== ENDPOINT 7: Health check — use this to debug connection issues ====
 app.get("/api/health", async (req, res) => {
   const result = {
     server: "ok",
