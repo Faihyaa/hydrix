@@ -31,7 +31,10 @@ const ALERT_RECIPIENTS = process.env.ALERT_RECIPIENTS;
 
 // ==== NODEMAILER SETUP ====
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  family: 4,        // paksa IPv4
   auth: {
     user: GMAIL_USER,
     pass: GMAIL_APP_PASS,
