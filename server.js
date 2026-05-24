@@ -4,7 +4,8 @@ import cors from "cors";
 import nodemailer from "nodemailer";
 import admin from "firebase-admin";
 
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT
+const serviceAccount = JSON.parse(
+  Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString("utf-8")
 );
 
 admin.initializeApp({
@@ -248,6 +249,35 @@ app.post("/api/test-email", async (req, res) => {
     humidity: "100",
   });
   res.json({ sent: true });
+});
+
+// ==== ENDPOINT 4b: Contact form submission ====
+app.post("/api/contact", async (req, res) => {
+  const { name, email, subject, message } = req.body;
+
+  if (!name || !email || !subject || !message) {
+    return res.status(400).json({ error: "All fields are required." });
+  }
+
+  if (!GMAIL_USER || !GMAIL_APP_PASS) {
+    console.error("❌ /api/contact failed: missing Gmail credentials");
+    return res.status(500).json({ error: "Email server is not configured." });
+  }
+
+  try {
+    await transporter.sendMail({
+      from: `"HydriX Contact" <${GMAIL_USER}>`,
+      to: "adminhydrix@gmail.com",
+      subject: `Contact Form: ${subject}`,
+      text: `Name: ${name}\nEmail: ${email}\nSubject: ${subject}\nMessage: ${message}`,
+      html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><p><strong>Subject:</strong> ${subject}</p><p><strong>Message:</strong><br/>${message.replace(/\n/g, '<br/>')}</p>`,
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ /api/contact failed:", err.message || err);
+    res.status(500).json({ error: "Failed to send contact message." });
+  }
 });
 
 // ==== ENDPOINT 5: Historical data from Firebase Realtime Database ====
