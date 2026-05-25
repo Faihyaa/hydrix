@@ -66,11 +66,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
             {user && (
               <div className="flex items-center gap-4">
-                <Button onClick={() => setDarkMode(!darkMode)} variant="ghost" size="sm" className="hidden md:flex items-center gap-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50">
-                  {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-                </Button>
-
-                <div className="hidden md:block h-6 w-px bg-blue-200"></div>
 
                 <div className="hidden md:flex items-center gap-2">
                   {user.notifications ? <Bell className="text-blue-600" size={16} /> : <BellOff className="text-gray-400" size={16} />}
