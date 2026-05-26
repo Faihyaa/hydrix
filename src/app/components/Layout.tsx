@@ -1,7 +1,7 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './ui/button';
-import { Droplets, LogOut, User, Bell, BellOff, Menu, X, Sun, Moon } from 'lucide-react';
+import { Droplets, LogOut, User, Bell, BellOff, Menu, X } from 'lucide-react';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { AnimatedBackground } from './AnimatedBackground';
@@ -12,7 +12,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement | null>(null);
 
@@ -66,7 +65,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
             {user && (
               <div className="flex items-center gap-4">
-
                 <div className="hidden md:flex items-center gap-2">
                   {user.notifications ? <Bell className="text-blue-600" size={16} /> : <BellOff className="text-gray-400" size={16} />}
                   <Switch checked={user.notifications} onCheckedChange={updateNotificationPreference} id="notifications" className={user.notifications ? 'data-[state=checked]:bg-blue-600' : ''} />
@@ -111,11 +109,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Link to="/functionality" onClick={() => setMobileMenuOpen(false)} className={`block text-sm py-2 px-3 rounded-lg transition-colors ${isActive('/functionality') ? 'text-blue-600 font-semibold bg-blue-50' : 'text-gray-600 hover:bg-blue-50'}`}>Functionality</Link>
               <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className={`block text-sm py-2 px-3 rounded-lg transition-colors ${isActive('/dashboard') ? 'text-blue-600 font-semibold bg-blue-50' : 'text-gray-600 hover:bg-blue-50'}`}>IoT Dashboard</Link>
               <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className={`block text-sm py-2 px-3 rounded-lg transition-colors ${isActive('/contact') ? 'text-blue-600 font-semibold bg-blue-50' : 'text-gray-600 hover:bg-blue-50'}`}>Contact Us</Link>
-
-              <Button onClick={() => setDarkMode(!darkMode)} variant="ghost" size="sm" className="w-full flex items-center justify-center gap-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50">
-                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-                <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
-              </Button>
 
               <div className="flex items-center gap-2 py-2 px-3">
                 {user.notifications ? <Bell className="text-blue-600" size={16} /> : <BellOff className="text-gray-400" size={16} />}
