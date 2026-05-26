@@ -1,8 +1,11 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import nodemailer from "nodemailer";
+import sgMail from "@sendgrid/mail";
 import admin from "firebase-admin";
+
+// Initialize SendGrid
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const serviceAccount = JSON.parse(
   Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString("utf-8")
@@ -26,21 +29,8 @@ const TB_EMAIL = process.env.TB_EMAIL;
 const TB_PASSWORD = process.env.TB_PASSWORD;
 const TB_DEVICE_ID = "f72beee0-d9cd-11f0-8463-1fcaa679e0db";
 
-const GMAIL_USER = process.env.GMAIL_USER;
-const GMAIL_APP_PASS = process.env.GMAIL_APP_PASS;
+const SENDGRID_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || "noreply@hydrix.com";
 const ALERT_RECIPIENTS = process.env.ALERT_RECIPIENTS;
-
-// ==== NODEMAILER SETUP ====
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
-  family: 4,        // paksa IPv4
-  auth: {
-    user: GMAIL_USER,
-    pass: GMAIL_APP_PASS,
-  },
-});
 
 // ==== GET RECIPIENTS FROM FIRESTORE ====
 async function getAlertRecipients() {
@@ -49,10 +39,14 @@ async function getAlertRecipients() {
       .collection("users")
       .where("alertEnabled", "==", true)
       .get();
+    
     const emails = [];
     snapshot.forEach((doc) => {
-      if (doc.data().email) emails.push(doc.data().email);
+      if (doc.data().email) {
+        emails.push(doc.data().email);
+      }
     });
+    
     console.log(`📋 Found ${emails.length} subscribed users`);
     return emails;
   } catch (err) {
@@ -65,7 +59,7 @@ async function getAlertRecipients() {
 let lastEmailTime = 0;
 const EMAIL_COOLDOWN = 10 * 60 * 1000; // 10 minutes
 
-// ==== SEND ALERT EMAIL ====
+// ==== SEND ALERT EMAIL (Using SendGrid) ====
 async function sendAlertEmail(alertData) {
   const now = Date.now();
   if (now - lastEmailTime < EMAIL_COOLDOWN) {
@@ -74,10 +68,10 @@ async function sendAlertEmail(alertData) {
   }
 
   const recipients = await getAlertRecipients();
-if (recipients.length === 0) {
-  console.log("⚠️ No recipients found, skipping email.");
-  return;
-}
+  if (recipients.length === 0) {
+    console.log("⚠️ No recipients found, skipping email.");
+    return;
+  }
 
   const { level, distance, rainStatus, temperature, humidity } = alertData;
   const isAlert = level === "ALERT";
@@ -133,16 +127,18 @@ if (recipients.length === 0) {
   `;
 
   try {
-    await transporter.sendMail({
-      from: `"FlooDeT Alert" <${GMAIL_USER}>`,
-      to: recipients.join(","),
+    const msg = {
+      to: recipients,
+      from: SENDGRID_FROM_EMAIL,
       subject: `${emoji} FlooDeT ${level}: Flood ${isAlert ? "DETECTED" : "WARNING"} - ${time}`,
       html,
-    });
+    };
+
+    await sgMail.sendMultiple(msg);
     lastEmailTime = now;
-    console.log("✅ Alert email sent!");
+    console.log("✅ Alert email sent to", recipients.length, "users!");
   } catch (err) {
-    console.error("❌ Email failed:", err.message);
+    console.error("❌ SendGrid error:", err.message);
   }
 }
 
@@ -251,7 +247,7 @@ app.post("/api/test-email", async (req, res) => {
   res.json({ sent: true });
 });
 
-// ==== ENDPOINT 4b: Contact form submission ====
+// ==== ENDPOINT 5: Contact form submission (Using SendGrid) ====
 app.post("/api/contact", async (req, res) => {
   const { name, email, subject, message } = req.body;
 
@@ -259,29 +255,34 @@ app.post("/api/contact", async (req, res) => {
     return res.status(400).json({ error: "All fields are required." });
   }
 
-  if (!GMAIL_USER || !GMAIL_APP_PASS) {
-    console.error("❌ /api/contact failed: missing Gmail credentials");
-    return res.status(500).json({ error: "Email server is not configured." });
+  if (!process.env.SENDGRID_API_KEY) {
+    console.error("❌ /api/contact failed: SENDGRID_API_KEY not set");
+    return res.status(500).json({ error: "Email service is not configured." });
   }
 
   try {
-    await transporter.sendMail({
-      from: `"HydriX Contact" <${GMAIL_USER}>`,
+    const msg = {
       to: "adminhydrix@gmail.com",
-      subject: `Contact Form: ${subject}`,
-      text: `Name: ${name}\nEmail: ${email}\nSubject: ${subject}\nMessage: ${message}`,
-      html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><p><strong>Subject:</strong> ${subject}</p><p><strong>Message:</strong><br/>${message.replace(/\n/g, '<br/>')}</p>`,
-    });
+      from: SENDGRID_FROM_EMAIL,
+      subject: `HydriX Contact Form: ${subject}`,
+      html: `
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Subject:</strong> ${subject}</p>
+        <p><strong>Message:</strong></p>
+        <p>${message.replace(/\n/g, '<br/')}</p>
+      `,
+    };
 
+    await sgMail.send(msg);
     res.json({ success: true });
   } catch (err) {
-    console.error("❌ /api/contact failed:", err.message || err);
+    console.error("❌ /api/contact failed:", err.message);
     res.status(500).json({ error: "Failed to send contact message." });
   }
 });
 
-// ==== ENDPOINT 5: Historical data from Firebase Realtime Database ====
-// FIX: was using Firestore syntax (db.collection) — now uses Realtime Database correctly
+// ==== ENDPOINT 6: Historical data from Firebase Realtime Database ====
 app.get("/api/history", async (req, res) => {
   try {
     const snapshot = await db.ref("sensorHistory")
@@ -307,7 +308,7 @@ app.get("/api/history", async (req, res) => {
   }
 });
 
-// ==== ENDPOINT 6: User register (simpan ke Firestore) ====
+// ==== ENDPOINT 7: User register (save to Firestore) ====
 app.post("/api/users/register", async (req, res) => {
   const { uid, email, name, notifications } = req.body;
   
@@ -331,7 +332,7 @@ app.post("/api/users/register", async (req, res) => {
   }
 });
 
-// ==== ENDPOINT 7: Health check — use this to debug connection issues ====
+// ==== ENDPOINT 8: Health check ====
 app.get("/api/health", async (req, res) => {
   const result = {
     server: "ok",
@@ -341,9 +342,8 @@ app.get("/api/health", async (req, res) => {
     env: {
       TB_EMAIL: TB_EMAIL ? "✅ set" : "❌ missing",
       TB_PASSWORD: process.env.TB_PASSWORD ? "✅ set" : "❌ missing",
-      GMAIL_USER: GMAIL_USER ? "✅ set" : "❌ missing",
-      GMAIL_APP_PASS: GMAIL_APP_PASS ? "✅ set" : "❌ missing",
-      ALERT_RECIPIENTS: ALERT_RECIPIENTS ? "✅ set" : "❌ missing",
+      SENDGRID_API_KEY: process.env.SENDGRID_API_KEY ? "✅ set" : "❌ missing",
+      SENDGRID_FROM_EMAIL: SENDGRID_FROM_EMAIL ? "✅ set" : "❌ missing",
       FIREBASE_SERVICE_ACCOUNT_BASE64: process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 ? "✅ set" : "❌ missing",
     },
   };
@@ -394,7 +394,6 @@ async function checkAndSave() {
     }
 
   } catch (err) {
-    // FIX: log full error so you know exactly why fetch is failing
     console.error("❌ checkAndSave failed:", err.message);
   }
 }
