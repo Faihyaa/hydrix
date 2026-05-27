@@ -44,7 +44,7 @@ const TB_EMAIL = process.env.TB_EMAIL;
 const TB_PASSWORD = process.env.TB_PASSWORD;
 const TB_DEVICE_ID = "f72beee0-d9cd-11f0-8463-1fcaa679e0db";
 
-const SENDGRID_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || "noreply@hydrix.com";
+const SENDGRID_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || "adminhydrix@gmail.com";
 const ALERT_RECIPIENTS = process.env.ALERT_RECIPIENTS;
 
 // ==== GET RECIPIENTS FROM FIRESTORE ====
@@ -141,7 +141,7 @@ function startRealtimeMonitoring() {
 const messages = {
   WARN: {
     subject: "WARNING – Flood Risk Detected",
-    html: (name) => `
+    html: (name, sensorData) => `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #d97706; border-radius: 8px; overflow: hidden;">
         <div style="background: #d97706; padding: 24px; text-align: center;">
           <h1 style="color: white; margin: 0; font-size: 20px; font-weight: 500; letter-spacing: 0.5px;">WARNING – Flood Risk Detected</h1>
@@ -185,7 +185,7 @@ const messages = {
 
   ALERT: {
     subject: "ALERT – Critical Flood Risk Detected",
-    html: (name) => `
+    html: (name, sensorData) => `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #dc2626; border-radius: 8px; overflow: hidden;">
         <div style="background: #dc2626; padding: 24px; text-align: center;">
           <h1 style="color: white; margin: 0; font-size: 20px; font-weight: 500; letter-spacing: 0.5px;">ALERT – Critical Flood Risk Detected</h1>
@@ -271,7 +271,7 @@ async function sendFloodMessage(level, sensorData = {}) {
             to: user.email,
             from: SENDGRID_FROM_EMAIL,
             subject: messages[level].subject,
-            html: messages[level].html(user.name || "Valued User"),
+            html: messages[level].html(user.name || "Valued User", sensorData),
           })
         );
       }
@@ -305,7 +305,7 @@ async function sendSafeMessage(sensorData = {}) {
             to: user.email,
             from: SENDGRID_FROM_EMAIL,
             subject: messages.SAFE.subject,
-            html: messages.SAFE.html(user.name || "Valued User"),
+            html: messages.SAFE.html(user.name || "Valued User", sensorData),
           })
         );
       }
