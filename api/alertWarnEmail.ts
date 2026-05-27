@@ -1,24 +1,45 @@
 import sgMail from '@sendgrid/mail';
 import { database } from '../src/lib/firebase';
 import { ref, onValue, get } from 'firebase/database';
-import { NextResponse } from 'next/server';
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
+// =====================
+// SENDGRID SETUP
+// =====================
+const key = process.env.SENDGRID_API_KEY;
 
-// track last sent state per sensor
+if (!key) {
+  throw new Error('SENDGRID_API_KEY is missing in environment variables');
+}
+
+sgMail.setApiKey(key);
+
+// =====================
+// STATE TRACKING
+// =====================
 let lastSentLevelBySensor = new Map<string, string>();
-
 let isListening = false;
 
+// =====================
+// ENTRY POINT (called by /api/alerts)
+// =====================
 export async function GET() {
   if (!isListening) {
     isListening = true;
     startRealtimeMonitoring();
   }
 
-  return NextResponse.json({ monitoring: true });
+  return new Response(
+    JSON.stringify({ monitoring: true }),
+    {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    }
+  );
 }
 
+// =====================
+// FIREBASE REALTIME LISTENER
+// =====================
 function startRealtimeMonitoring() {
   const sensorRef = ref(database, 'sensorData');
 
@@ -31,43 +52,53 @@ function startRealtimeMonitoring() {
 
       const lastLevel = lastSentLevelBySensor.get(sensorId);
 
-      // ONLY SEND WHEN STATE CHANGES
+      // ONLY SEND IF STATE CHANGES
       if (lastLevel !== level) {
         lastSentLevelBySensor.set(sensorId, level);
 
         await sendFloodMessage(level);
 
-        console.log(`📧 Sent ${level} alert for ${sensorId}`);
+        console.log(`📧 Sent ${level.toUpperCase()} alert for ${sensorId}`);
       }
     }
   });
 }
 
+// =====================
+// SEND EMAIL FUNCTION
+// =====================
 async function sendFloodMessage(level: 'warn' | 'alert') {
   const messages = {
     warn: {
       subject: 'WARNING – Flood Risk Detected',
-      getHtml: (userName: string) => `
-        <p>Hello ${userName},</p>
+      html: (name: string) => `
+        <p>Hello ${name},</p>
+
         <p>A potential flood risk has been detected in your area.</p>
+
         <ul>
           <li>Stay alert</li>
           <li>Prepare essentials</li>
           <li>Avoid risky areas</li>
         </ul>
+
         <p><strong>HydriX Team</strong></p>
       `
     },
+
     alert: {
       subject: 'ALERT – Critical Flood Risk Detected',
-      getHtml: (userName: string) => `
-        <p>Hello ${userName},</p>
+      html: (name: string) => `
+        <p>Hello ${name},</p>
+
         <p><strong>Immediate evacuation recommended.</strong></p>
+
         <ul>
           <li>Move to higher ground</li>
           <li>Secure belongings</li>
           <li>Follow authorities</li>
         </ul>
+
         <p><strong>HydriX Team</strong></p>
       `
     }
@@ -81,21 +112,21 @@ async function sendFloodMessage(level: 'warn' | 'alert') {
 
     const usersData = snapshot.val();
 
-    const emailPromises = Object.values(usersData)
+    const emailJobs = Object.values(usersData)
       .filter((user: any) => user.alertEnabled === true)
       .map((user: any) =>
         sgMail.send({
           to: user.email,
           from: 'Hydrix Admin <adminhydrix@gmail.com>',
           subject: messages[level].subject,
-          html: messages[level].getHtml(user.name),
+          html: messages[level].html(user.name),
         })
       );
 
-    await Promise.all(emailPromises);
+    await Promise.all(emailJobs);
 
-    console.log(`✅ ${level.toUpperCase()} emails sent`);
+    console.log(`✅ ${level.toUpperCase()} emails sent successfully`);
   } catch (error) {
-    console.error(`SendGrid error (${level}):`, error);
+    console.error(`❌ SendGrid error (${level}):`, error);
   }
 }

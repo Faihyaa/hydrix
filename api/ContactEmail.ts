@@ -1,31 +1,32 @@
+import type { Request, Response } from 'express';
 import sgMail from '@sendgrid/mail';
-import { NextRequest, NextResponse } from 'next/server';
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
+const key = process.env.SENDGRID_API_KEY;
 
-interface ContactFormData {
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
+if (!key) {
+  throw new Error("SENDGRID_API_KEY missing in environment variables");
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const { name, email, subject, message }: ContactFormData =
-      await request.json();
+sgMail.setApiKey(key);
 
+export default async function handler(req: Request, res: Response) {
+  try {
+    // only allow POST
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    const { name, email, subject, message } = req.body;
+
+    // validation
     if (!name || !email || !subject || !message) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
     await sgMail.send({
-      to: 'adminhydrix@gmail.com', // ADMIN receives email
-      from: 'Hydrix Admin <adminhydrix@gmail.com>', // MUST be verified in SendGrid
-      replyTo: email, // 👈 USER email (admin can reply here)
+      to: 'adminhydrix@gmail.com',
+      from: 'HydriX Admin <adminhydrix@gmail.com>',
+      replyTo: email,
       subject: `New Contact: ${subject}`,
       html: `
         <p><strong>Name:</strong> ${name}</p>
@@ -35,12 +36,10 @@ export async function POST(request: NextRequest) {
       `,
     });
 
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
+    return res.status(200).json({ success: true });
+
+  } catch (error) {
     console.error('SendGrid error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to send email' },
-      { status: 500 }
-    );
+    return res.status(500).json({ error: 'Failed to send email' });
   }
 }
