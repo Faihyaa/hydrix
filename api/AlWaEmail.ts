@@ -97,7 +97,7 @@ async function sendFloodMessage(level: 'warn' | 'alert') {
       .map((user: any) =>
         sgMail.send({
           to: user.email,
-          from: 'alerts@yoursite.com',
+          from: 'adminhydrix@gmail.com',
           subject: messages[level].subject,
           html: messages[level].getHtml(user.name),
         })

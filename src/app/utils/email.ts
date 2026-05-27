@@ -6,7 +6,7 @@ export interface ContactFormData {
 }
 
 export async function sendContactMessage(formData: ContactFormData) {
-  return fetch('/api/contact', {
+  return fetch(`${import.meta.env.VITE_API_URL}/api/contact`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
