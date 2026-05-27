@@ -11,23 +11,36 @@ interface ContactFormData {
 }
 
 export async function POST(request: NextRequest) {
-  const { name, email, subject, message }: ContactFormData = await request.json();
-
-  // Validate
-  if (!name || !email || !subject || !message) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-  }
-
   try {
+    const { name, email, subject, message }: ContactFormData =
+      await request.json();
+
+    if (!name || !email || !subject || !message) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
     await sgMail.send({
-      to: 'your-email@gmail.com', // Change this
-      from: 'noreply@yoursite.com', // Change this
+      to: 'adminhydrix@gmail.com', // ADMIN receives email
+      from: 'Hydrix Admin <adminhydrix@gmail.com>', // MUST be verified in SendGrid
+      replyTo: email, // 👈 USER email (admin can reply here)
       subject: `New Contact: ${subject}`,
-      html: `<p><strong>From:</strong> ${name} (${email})</p><p><strong>Message:</strong> ${message}</p>`
+      html: `
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Message:</strong></p>
+        <p>${message}</p>
+      `,
     });
+
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('SendGrid error:', error);
-    return NextResponse.json({ error: 'Failed to send email' }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || 'Failed to send email' },
+      { status: 500 }
+    );
   }
 }
