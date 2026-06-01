@@ -19,7 +19,6 @@ export default function Home() {
   const [instantOpacity, setInstantOpacity] = useState(0);
 
   useEffect(() => {
-    // 100% counter
     const interval = setInterval(() => {
       setCount((prev) => {
         if (prev < 100) return prev + 1;
@@ -27,7 +26,6 @@ export default function Home() {
       });
     }, 15);
 
-    // 24 counter
     const hourInterval = setInterval(() => {
       setHourCount((prev) => {
         if (prev < 24) return prev + 1;
@@ -35,7 +33,6 @@ export default function Home() {
       });
     }, 30);
 
-    // Instant fade-in
     const instantTimeout = setTimeout(() => {
       setInstantOpacity(1);
     }, 500);
@@ -88,31 +85,34 @@ export default function Home() {
 
   const floodHistory = [
     {
-      date: '2023-12-15',
-      title: 'Major Flood Alert - Riverside District',
+      date: '2024-11-15',
+      title: 'Heavy Rain Causes Flash Floods in Petaling Jaya & Kuala Lumpur',
       description:
-        'Water level reached critical threshold. Emergency response activated within 10 minutes. No casualties reported.',
+        'Heavy downpour triggered flash floods across parts of Petaling Jaya and Kuala Lumpur, inundating roads and affecting residents in low-lying areas.',
       severity: 'high',
-      image:
-        'https://images.unsplash.com/photo-1547683905-f686c993aae5?w=400'
+      source: 'The Straits Times',
+      url: 'https://www.straitstimes.com/asia/se-asia/heavy-rain-causes-flash-floods-in-parts-of-petaling-jaya-and-kuala-lumpur',
+      bg: 'from-red-900 to-red-600'
     },
     {
-      date: '2024-03-22',
-      title: 'Flash Flood Warning - Downtown Area',
+      date: '2025-01-01',
+      title: 'Flood Situation Worsens Across Multiple Malaysian States',
       description:
-        'Heavy rainfall caused sudden water rise. System detected anomaly 45 minutes before flood. Residents evacuated safely.',
+        'Flood conditions deteriorated in several states as continuous rainfall raised river levels. Thousands of evacuees were moved to relief centres.',
       severity: 'medium',
-      image:
-        'https://images.unsplash.com/photo-1527482797697-8795b05a13fe?w=400'
+      source: 'The Edge Malaysia',
+      url: 'https://theedgemalaysia.com/node/802553',
+      bg: 'from-orange-800 to-amber-500'
     },
     {
-      date: '2024-08-09',
-      title: 'Monsoon Season - Early Detection Success',
+      date: '2026-01-04',
+      title: 'DID Warns of Possible Floods Across 10 Kelantan Districts',
       description:
-        'Continuous monitoring during monsoon season prevented potential disaster. Early warnings issued 2 hours in advance.',
+        'The Department of Irrigation and Drainage issued an early flood forecast for Kelantan from Jan 5–8, covering major river basins including Sungai Kelantan and Sungai Golok.',
       severity: 'low',
-      image:
-        'https://images.unsplash.com/photo-1520483601560-6fa20e8c5ce3?w=400'
+      source: 'Malay Mail',
+      url: 'https://www.malaymail.com/news/malaysia/2026/01/04/heads-up-kelantan-did-warns-of-possible-floods-this-week-across-10-districts-from-jan-5-with-rising-rivers/204203',
+      bg: 'from-blue-900 to-cyan-600'
     }
   ];
 
@@ -133,7 +133,7 @@ export default function Home() {
             </h1>
 
             <p className="text-xl text-gray-600 mb-8 leading-relaxed text-left">
-              Advanced IoT-powered flood monitoring designed to help 
+              Advanced IoT-powered flood monitoring designed to help
               communities stay prepared before disasters happen.
             </p>
 
@@ -161,19 +161,16 @@ export default function Home() {
 
           {/* Right Stats Bubbles */}
           <div className="relative flex justify-center items-center min-h-[460px]">
-
             <div className="relative w-[380px] h-[460px]">
 
               {/* Decorative Bubbles */}
               <div className="absolute inset-0 pointer-events-none">
-
                 <div className="absolute top-8 left-10 w-10 h-10 bg-blue-200/70 rounded-full shadow-md animate-[float_6s_ease-in-out_infinite]" />
                 <div className="absolute top-12 right-8 w-12 h-12 bg-cyan-200/70 rounded-full shadow-md animate-[float_7s_ease-in-out_infinite]" />
                 <div className="absolute top-1/2 left-0 w-9 h-9 bg-sky-300/60 rounded-full shadow-md animate-[float_5.5s_ease-in-out_infinite]" />
                 <div className="absolute top-1/2 right-0 w-10 h-10 bg-blue-300/60 rounded-full shadow-md animate-[float_6.5s_ease-in-out_infinite]" />
                 <div className="absolute bottom-12 left-14 w-11 h-11 bg-sky-200/70 rounded-full shadow-md animate-[float_6.8s_ease-in-out_infinite]" />
                 <div className="absolute bottom-10 right-16 w-10 h-10 bg-cyan-200/70 rounded-full shadow-md animate-[float_7.2s_ease-in-out_infinite]" />
-
               </div>
 
               {/* Bubble 1 - Real Time Monitoring (GREEN) */}
@@ -217,7 +214,6 @@ export default function Home() {
           <h2 className="text-4xl font-bold text-blue-900 mb-4">
             Flood Detection History
           </h2>
-
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Real success stories from our flood detection system - lives saved
             and disasters prevented
@@ -237,12 +233,10 @@ export default function Home() {
               }`}
             >
               <div className="relative h-48 overflow-hidden">
-                <img
-                  src={event.image}
-                  alt={event.title}
-                  className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
-                />
-
+                <div className={`w-full h-full bg-gradient-to-br ${event.bg} flex flex-col items-center justify-center gap-2`}>
+                  <AlertTriangle size={40} className="text-white opacity-50" />
+                  <span className="text-white/70 text-xs font-medium uppercase tracking-wider">{event.source}</span>
+                </div>
                 <div
                   className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold text-white ${
                     event.severity === 'high'
@@ -263,7 +257,6 @@ export default function Home() {
               <CardHeader>
                 <div className="flex items-center gap-2 text-gray-500 text-sm mb-2">
                   <Calendar size={16} />
-
                   <span>
                     {new Date(event.date).toLocaleDateString('en-US', {
                       year: 'numeric',
@@ -272,7 +265,6 @@ export default function Home() {
                     })}
                   </span>
                 </div>
-
                 <CardTitle className="text-lg text-blue-900 flex items-start gap-2">
                   <AlertTriangle size={20} className="flex-shrink-0 mt-1" />
                   <span>{event.title}</span>
@@ -283,6 +275,14 @@ export default function Home() {
                 <CardDescription className="text-gray-600 leading-relaxed">
                   {event.description}
                 </CardDescription>
+                <a
+                  href={event.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 text-sm hover:underline mt-3 inline-block font-medium"
+                >
+                  Read full acrticle →
+                </a>
               </CardContent>
             </Card>
           ))}
@@ -295,7 +295,6 @@ export default function Home() {
           <h2 className="text-4xl font-bold text-blue-900 mb-4">
             Key Features
           </h2>
-
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Comprehensive flood detection capabilities designed to keep you
             informed and prepared
@@ -305,7 +304,6 @@ export default function Home() {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((feature, index) => {
             const Icon = feature.icon;
-
             return (
               <Card
                 key={index}
@@ -315,12 +313,10 @@ export default function Home() {
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center mb-4">
                     <Icon className="text-white" size={24} />
                   </div>
-
                   <CardTitle className="text-xl text-blue-900">
                     {feature.title}
                   </CardTitle>
                 </CardHeader>
-
                 <CardContent className="text-center">
                   <CardDescription className="text-gray-600 leading-relaxed">
                     {feature.description}
@@ -339,12 +335,10 @@ export default function Home() {
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Ready to Start Monitoring?
             </h2>
-
             <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
               Access our IoT dashboard and start tracking environmental
               conditions in real-time!
             </p>
-
             <Link to="/dashboard" className="mb-8">
               <Button
                 size="lg"
