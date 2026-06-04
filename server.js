@@ -44,7 +44,7 @@ const TB_EMAIL = process.env.TB_EMAIL;
 const TB_PASSWORD = process.env.TB_PASSWORD;
 const TB_DEVICE_ID = "f72beee0-d9cd-11f0-8463-1fcaa679e0db";
 
-const SENDGRID_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || "adminhydrix@gmail.com";
+const SENDGRID_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || "admin2hydrix@gmail.com";
 const ALERT_RECIPIENTS = process.env.ALERT_RECIPIENTS;
 
 // ==== GET RECIPIENTS FROM FIRESTORE ====
@@ -450,8 +450,8 @@ app.post("/api/contact", async (req, res) => {
 
   try {
     await sgMail.send({
-      to: "adminhydrix@gmail.com",
-      from: "HydriX Admin <adminhydrix@gmail.com>",
+      to: "admin2hydrix@gmail.com",
+      from: "HydriX Admin <admin2hydrix@gmail.com>",
       replyTo: email,
       subject: `Contact Form: ${subject}`,
       html: `
